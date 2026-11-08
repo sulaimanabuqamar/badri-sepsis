@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Badri Sepsis Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;600&family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Palette: Stowe White, Wild Dove, Deep Lake, Red Ochre, Raku. --alert is a functional alarm colour added for the sepsis alarm only. */
+  --stowe: #EDE6DB; --dove: #7F7A83; --lake: #1C5469; --ochre: #BF8945; --raku: #5B595A;
+  --bg: var(--stowe);
+  --paper: rgba(250, 247, 242, 0.88);
+  --paper-solid: #FAF7F2;
+  --head: var(--lake);
+  --text: #3E3C3D;
+  --muted: #6F6A73;
+  --line: rgba(91, 89, 90, 0.16);
+  --seg: rgba(91, 89, 90, 0.08);
+  --primary: var(--lake);
+  --on-primary: #F7F3EC;
+  --warm: var(--ochre);
+  --alert: #A8432F;
+  --alert-soft: rgba(168, 67, 47, 0.1);
+  --shadow: 0 10px 34px rgba(28, 84, 105, 0.1), 0 1px 2px rgba(28, 84, 105, 0.06);
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --arabic: 'IBM Plex Sans Arabic', 'Inter', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D1C1D; --paper: rgba(38, 37, 38, 0.88); --paper-solid: #262526; --head: #9CCBDB; --text: #ECE5DA; --muted: #ADA8B1;
+    --line: rgba(237, 230, 219, 0.13); --seg: rgba(237, 230, 219, 0.08); --primary: #9CCBDB; --on-primary: #10252D; --warm: #D6A15F;
+    --alert: #E07A62; --alert-soft: rgba(224, 122, 98, 0.15); --shadow: 0 10px 34px rgba(0, 0, 0, 0.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D1C1D; --paper: rgba(38, 37, 38, 0.88); --paper-solid: #262526; --head: #9CCBDB; --text: #ECE5DA; --muted: #ADA8B1;
+  --line: rgba(237, 230, 219, 0.13); --seg: rgba(237, 230, 219, 0.08); --primary: #9CCBDB; --on-primary: #10252D; --warm: #D6A15F;
+  --alert: #E07A62; --alert-soft: rgba(224, 122, 98, 0.15); --shadow: 0 10px 34px rgba(0, 0, 0, 0.35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--font); overflow: hidden; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.k { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.tab { font-variant-numeric: tabular-nums; }
+
+#scene { position: fixed; inset: 0; }
+#scene canvas { display: block; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.shade { position: fixed; left: 0; right: 0; pointer-events: none; z-index: 1; }
+.shade.t { top: 0; height: 120px; background: linear-gradient(color-mix(in srgb, var(--bg) 80%, transparent), transparent); }
+.shade.b { bottom: 0; height: 260px; background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 88%, transparent) 70%); }
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 6; }
+.progress i { display: block; height: 100%; width: 0; background: var(--warm); transition: width 0.3s linear; }
+
+/* top bar */
+.top { position: fixed; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 16px; padding: 16px 22px; }
+.brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.mark { width: 34px; height: 34px; flex: none; }
+.name { font: 600 21px/1 var(--display); letter-spacing: -0.04em; color: var(--head); display: flex; align-items: baseline; gap: 8px; }
+.name span { font: 600 18px/1 var(--arabic); letter-spacing: 0; color: var(--warm); }
+.sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.seg { margin-left: auto; display: flex; gap: 2px; padding: 4px; background: var(--paper); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.seg button { border: 0; background: transparent; color: var(--muted); padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; min-height: 36px; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-selected="true"] { background: var(--paper-solid); color: var(--head); box-shadow: var(--shadow); font-weight: 600; }
+
+/* the one card */
+.card { position: fixed; top: 82px; left: 22px; z-index: 4; width: 300px; background: var(--paper); backdrop-filter: blur(16px) saturate(1.1); -webkit-backdrop-filter: blur(16px) saturate(1.1); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; box-shadow: var(--shadow); }
+.card .row { display: flex; justify-content: space-between; align-items: baseline; }
+.card .clock { font: 600 15px var(--display); letter-spacing: -0.01em; color: var(--head); font-variant-numeric: tabular-nums; }
+.who { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; }
+.who b { font: 600 18px/1.2 var(--display); letter-spacing: -0.03em; color: var(--text); }
+.loc { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--seg); color: var(--muted); white-space: nowrap; }
+.cc { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.nums { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.big { display: block; font: 500 34px/1.05 var(--display); letter-spacing: -0.05em; color: var(--head); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.big small { font: 500 13px var(--font); letter-spacing: 0; color: var(--muted); margin-left: 3px; }
+.big.hot { color: var(--alert); }
+.big.warm { color: var(--warm); }
+.status { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 500; padding: 9px 11px; border-radius: 11px; background: var(--seg); }
+.status i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.status[data-level="routine"] i, .status[data-level="respond"] i { background: var(--lake); }
+.status[data-level="watch"] i { background: var(--warm); }
+.status[data-level="alert"], .status[data-level="confirmed"] { background: var(--alert-soft); color: var(--alert); }
+.status[data-level="alert"] i, .status[data-level="confirmed"] i { background: var(--alert); }
+.status[data-level="alert"] i { animation: ping 1s ease-in-out infinite; }
+@keyframes ping { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--alert) 25%, transparent); } }
+.hour { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.hour .bar { height: 6px; border-radius: 999px; background: var(--seg); overflow: hidden; margin-bottom: 5px; }
+.hour .bar i { display: block; height: 100%; width: 0; background: var(--lake); transition: width 0.2s; }
+.card .ack { width: 100%; margin-top: 10px; justify-content: center; }
+.try { margin-top: 12px; display: grid; gap: 9px; }
+.slider label { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+.slider label span { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.slider input { width: 100%; accent-color: var(--lake); margin: 2px 0 0; }
+.try .btns { display: flex; gap: 8px; }
+.try .btns .btn { flex: 1; justify-content: center; }
+
+/* bottom: caption left, controls right */
+.bottom { position: fixed; left: 22px; right: 22px; bottom: 20px; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; pointer-events: none; }
+.bottom > * { pointer-events: auto; }
+.caption { max-width: 660px; min-width: 0; }
+.chips { display: flex; gap: 6px; }
+.chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--muted); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.chip.lvl { color: var(--head); }
+.chip.lvl[data-level="watch"] { color: var(--warm); }
+.chip.lvl[data-level="alert"], .chip.lvl[data-level="confirmed"] { color: var(--alert); }
+h1 { font: 600 clamp(27px, 3.2vw, 46px)/1.04 var(--display); letter-spacing: -0.045em; color: var(--head); margin: 10px 0 8px; text-wrap: balance; }
+.caption p { margin: 0; font-size: 16px; max-width: 58ch; color: var(--text); text-wrap: pretty; }
+.ctrl { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 44px; padding: 0 15px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper-solid); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px rgba(28, 84, 105, 0.06); }
+.btn:hover { border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); min-width: 108px; justify-content: center; }
+.btn[aria-expanded="true"] { background: var(--seg); }
+.btn.icon { padding: 0; justify-content: center; }
+.btn.alert { background: var(--alert); border-color: var(--alert); color: #fff; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.keys { font-size: 11.5px; color: var(--muted); }
+
+/* details drawer */
+.drawer { position: fixed; top: 82px; right: 22px; bottom: 112px; z-index: 5; width: 380px; overflow-y: auto; background: var(--paper); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 4px 18px 18px; transform: translateX(calc(100% + 40px)); transition: transform 0.35s cubic-bezier(.2,.7,.2,1); }
+.drawer[data-open="true"] { transform: none; }
+.dhead { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 10px 0 6px; margin: 0 -2px; background: linear-gradient(var(--paper-solid) 75%, transparent); }
+.dhead .btn { min-height: 36px; min-width: 36px; }
+.drawer section { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.drawer section:last-child { border-bottom: 0; }
+.drawer h2 { font: 600 15px var(--display); letter-spacing: -0.02em; color: var(--head); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.drawer h2 small { font: 500 11.5px var(--font); color: var(--muted); letter-spacing: 0; }
+.vrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 6px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+.vrow:last-child { border-bottom: 0; }
+.vrow .v { font: 600 15px var(--display); font-variant-numeric: tabular-nums; text-align: right; }
+.vrow .s { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.vrow.hot .v { color: var(--alert); }
+.vrow.warm .v { color: var(--warm); }
+.trend svg { width: 100%; height: 110px; display: block; }
+.note { font-size: 11.5px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; padding: 4px 3px; border-bottom: 1px solid var(--line); }
+td { padding: 5px 3px; border-bottom: 1px solid var(--line); }
+td.p { text-align: right; font-weight: 600; }
+tr.hot td.p { color: var(--alert); }
+.esc-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.esc-row[data-state="notified"] .dot { background: var(--alert); }
+.esc-row[data-state="ack"] .dot { background: var(--lake); }
+.esc-row .nm { font-size: 13px; font-weight: 600; }
+.esc-row .st { font-size: 11.5px; color: var(--muted); }
+.esc-row .btn { min-height: 34px; padding: 0 10px; font-size: 12.5px; }
+.check { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.check li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; font-size: 12.5px; }
+.check .bx { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--line); margin-top: 2px; }
+.check li.done .bx { background: var(--lake); border-color: var(--lake); }
+.check .det { color: var(--muted); }
+.opts { display: flex; gap: 2px; padding: 3px; background: var(--seg); border-radius: 11px; width: max-content; margin: 4px 0 10px; }
+.opts button { border: 0; background: transparent; border-radius: 8px; padding: 6px 11px; font-size: 12.5px; cursor: pointer; color: var(--muted); min-height: 32px; }
+.opts button[aria-pressed="true"] { background: var(--paper-solid); color: var(--head); font-weight: 600; box-shadow: var(--shadow); }
+.log { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 220px; overflow-y: auto; }
+.log li { display: grid; grid-template-columns: 42px 1fr; gap: 8px; padding: 3px 0; }
+.log li .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.log li.alert { color: var(--alert); }
+.log li.tick { color: var(--muted); }
+.drawer a { color: var(--head); }
+
+/* end card */
+.endcard { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7; width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; background: var(--paper-solid); border: 1px solid var(--line); border-radius: 22px; padding: 26px 28px; box-shadow: 0 30px 80px rgba(28, 84, 105, 0.22); }
+.endcard h2 { font: 600 28px/1.1 var(--display); letter-spacing: -0.04em; color: var(--head); margin: 6px 0 18px; text-wrap: balance; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin-bottom: 22px; }
+.stats:has(> :nth-child(4)) { grid-template-columns: 1fr 1fr; }
+body.ended .caption { visibility: hidden; }
+.stat .v { display: block; font: 500 30px/1.05 var(--display); letter-spacing: -0.04em; color: var(--head); margin: 4px 0 3px; font-variant-numeric: tabular-nums; }
+.stat .n { font-size: 12px; color: var(--muted); }
+.stat.hot .v { color: var(--alert); }
+.endcard .row { display: flex; gap: 8px; justify-content: flex-end; }
+.endcard .fine { font-size: 11.5px; color: var(--muted); margin: -8px 0 16px; }
+
+/* 3D labels */
+.zone { font: 600 10.5px/1 var(--font); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--paper); border: 1px solid var(--line); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.zone.flash { background: var(--alert); color: #fff; border-color: var(--alert); }
+.bubble { max-width: 220px; background: var(--paper-solid); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 7px 10px; font-size: 12.5px; line-height: 1.3; box-shadow: var(--shadow); transform: translateY(-8px); transition: opacity 0.25s; text-align: center; }
+.bubble b { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.bubble.hidden { opacity: 0; }
+.bubble.badri { border-color: var(--alert); }
+.bubble.badri b { color: var(--alert); }
+
+@media (max-width: 900px) {
+  .top { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
+  .seg { margin-left: 0; width: 100%; }
+  .card { top: 118px; left: 14px; width: 260px; padding: 12px 14px; }
+  .cc { display: none; }
+  .big { font-size: 28px; }
+  .bottom { left: 14px; right: 14px; bottom: 14px; flex-direction: column; align-items: stretch; gap: 12px; }
+  .ctrl { align-items: stretch; }
+  .controls { justify-content: space-between; flex-wrap: nowrap; }
+  .controls .btn .t { display: none; }
+  .controls .btn { flex: 1; justify-content: center; padding: 0; }
+  .btn.primary { min-width: 0; }
+  .keys { display: none; }
+  .drawer { top: auto; left: 14px; right: 14px; bottom: 14px; width: auto; height: 68vh; transform: translateY(calc(100% + 30px)); }
+  .shade.b { height: 300px; }
+}
+@media (max-width: 560px) {
+  .sub { display: none; }
+  .card { right: 14px; width: auto; }
+  .nums { margin: 10px 0 8px; padding-top: 8px; }
+  .caption p { font-size: 14.5px; }
+  h1 { font-size: 25px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status[data-level="alert"] i { animation: none; }
+  .drawer, .progress i, .hour .bar i { transition: none; }
+}
+</style>
+</head>
+<body>
+<div id="scene" role="img" aria-label="3D hospital: entrance, triage, ward with three beds, clinic, nurse station and ICU doors"></div>
+<div class="shade t"></div><div class="shade b"></div>
+<div class="progress" aria-hidden="true"><i id="prog"></i></div>
+
+<header class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
+      <rect width="34" height="34" rx="10" fill="#1C5469"/>
+      <path d="M8 21.5a9 9 0 0 1 18 0z" fill="#BF8945"/>
+      <rect x="6" y="21.5" width="22" height="2" rx="1" fill="#EDE6DB"/>
+      <rect x="10" y="25.5" width="14" height="1.6" rx=".8" fill="#EDE6DB" opacity=".55"/>
+    </svg>
+    <div>
+      <div class="name">Badri <span lang="ar" dir="rtl">بدري</span></div>
+      <div class="sub">Sepsis early warning · a simulated hospital</div>
+    </div>
+  </div>
+  <nav class="seg" id="cases" role="tablist" aria-label="Choose a case"></nav>
+</header>
+
+<section class="card" id="card" aria-label="Patient">
+  <div class="row"><span class="k">Patient</span><span class="clock" id="clock">09:00</span></div>
+  <div class="who"><b id="pName"></b><span class="loc" id="pLoc"></span></div>
+  <div class="cc" id="pComplaint"></div>
+  <div class="nums">
+    <div><span class="k">Quick score</span><span class="big" id="qBig">–</span></div>
+    <div><span class="k">Lactate · patch</span><span class="big" id="lacBig">–</span></div>
+  </div>
+  <div class="status" id="status" data-level="arriving"><i></i><span id="stText">Arriving</span></div>
+  <div class="hour" id="hour" hidden><div class="bar"><i id="hourBar"></i></div><span id="hourText"></span></div>
+  <div class="try" id="try" hidden>
+    <div id="sliders"></div>
+    <div class="btns"><button class="btn" id="presetSick" type="button">Make septic</button><button class="btn" id="rescoreNow" type="button">Re-score now</button></div>
+  </div>
+  <button class="btn alert ack" id="ack" type="button" hidden></button>
+</section>
+
+<div class="bottom">
+  <div class="caption" aria-live="polite">
+    <div class="chips"><span class="chip tab" id="stepChip"></span><span class="chip lvl" id="stageChip"></span></div>
+    <h1 id="headline"></h1>
+    <p id="line"></p>
+  </div>
+  <div class="ctrl">
+    <div class="controls" role="group" aria-label="Simulation controls">
+      <button class="btn" id="back" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="t">Back</span></button>
+      <button class="btn primary" id="play" type="button"><svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span class="t" id="playText">Pause</span></button>
+      <button class="btn" id="next" type="button" aria-label="Next"><span class="t">Next</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      <button class="btn" id="restart" type="button" aria-label="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span class="t">Restart</span></button>
+      <button class="btn" id="details" type="button" aria-expanded="false" aria-controls="drawer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M14 4v16"/></svg><span class="t">Details</span></button>
+      <button class="btn icon" id="fs" type="button" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+    </div>
+    <div class="keys">Space play · ← → step · D details · F full screen · drag to look around</div>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer" data-open="false" aria-label="Details" inert>
+  <div class="dhead"><span class="k">Details</span><button class="btn icon" id="closeDrawer" type="button" aria-label="Close details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <section>
+    <h2>Vitals <small>latest reading and where it came from</small></h2>
+    <div id="vitals"></div>
+  </section>
+  <section class="trend">
+    <h2>Lactate from the patch <small>mmol/L</small></h2>
+    <svg id="trend" viewBox="0 0 340 110" role="img" aria-label="Lactate trend from the Badri patch"></svg>
+    <div class="note" id="trendNote"></div>
+  </section>
+  <section>
+    <h2>Scores <small>Sepsis-3</small></h2>
+    <div id="qrows"></div>
+    <table aria-label="Full SOFA score"><thead><tr><th>Organ</th><th>Measure</th><th>Value</th><th style="text-align:right">Pts</th></tr></thead><tbody id="sofaBody"></tbody></table>
+    <p class="note" id="sofaTotal"></p>
+    <p class="note">Badri alerts at quick score 2, or lactate 2 or more with any quick-score point, or lactate 4 or more alone. Demo thresholds, to be set with clinicians.</p>
+  </section>
+  <section>
+    <h2>Who gets alerted <small>escalates if nobody answers</small></h2>
+    <div id="esc"></div>
+  </section>
+  <section>
+    <h2>First hour <small>hour-1 sepsis bundle</small></h2>
+    <ul class="check" id="check"></ul>
+  </section>
+  <section>
+    <h2>Settings</h2>
+    <span class="k">Badri re-scores every</span>
+    <div class="opts" id="optInterval" role="group" aria-label="Re-score interval"></div>
+    <span class="k">Playback</span>
+    <div class="opts" id="optSpeed" role="group" aria-label="Playback speed"></div>
+  </section>
+  <section>
+    <h2>Event log</h2>
+    <ol class="log" id="log"></ol>
+  </section>
+  <section class="note">
+    Concept simulation with demo thresholds; the Badri patch is not a validated diagnostic.
+    Scores: <a href="https://pubmed.ncbi.nlm.nih.gov/26903338/">Sepsis-3 (Singer et al., JAMA 2016)</a>; SOFA bands as tabulated by the
+    <a href="https://www.msdmanuals.com/professional/multimedia/table/sequential-organ-failure-assessment-sofa-score">MSD Manual</a>;
+    hour-1 bundle: <a href="https://doi.org/10.1007/s00134-018-5085-0">Surviving Sepsis Campaign (Levy et al., 2018)</a>.
+  </section>
+</aside>
+
+<div class="endcard" id="end" role="dialog" aria-labelledby="endTitle" hidden>
+  <span class="k">Case complete</span>
+  <h2 id="endTitle"></h2>
+  <div class="stats" id="endStats"></div>
+  <p class="fine">Simulated case with demo thresholds.</p>
+  <div class="row"><button class="btn" id="replay" type="button">Replay</button><button class="btn primary" id="nextCase" type="button">Next case</button></div>
+</div>
+
+<script>
+/* Badri simulation engine: pure logic, no DOM. Time unit = simulated minutes. */
+(function (root) {
+  'use strict';
+
+  // Healthy targets the body drifts back to once antibiotics and fluids are in.
+  const NORMAL = { hr: 84, rr: 17, temp: 37.2, sbp: 120, dbp: 74, spo2: 97, gcs: 15, lac: 1.2 };
+  const ACK_WINDOW = 5;        // minutes before Badri pages the next person
+  const SECOND_WINDOW = 10;    // further minutes before responsible physician + ICU are paged
+  const LAB_TURNAROUND = 40;   // minutes from lab order to results
+  const ROUTINE_ROUNDS = 240;  // inpatient vitals every 4 hours (clinical advisor)
+  const PATCH_SAMPLE = 5;      // patch reading every 5 minutes
+
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const lerp = (a, b, k) => a + (b - a) * k;
+
+  function interp(keys, t, f) {
+    if (t <= keys[0].t) return keys[0][f];
+    for (let i = 1; i < keys.length; i++) {
+      if (t <= keys[i].t) {
+        const a = keys[i - 1], b = keys[i];
+        return lerp(a[f], b[f], (t - a.t) / (b.t - a.t));
+      }
+    }
+    return keys[keys.length - 1][f];
+  }
+  function wobble(t, seed, amp) {
+    return amp * (0.6 * Math.sin(t * 0.41 + seed) + 0.4 * Math.sin(t * 1.7 + seed * 1.9));
+  }
+  const meanArterial = (sbp, dbp) => (sbp + 2 * dbp) / 3;
+
+  // ---- Scores (Sepsis-3, Singer et al. JAMA 2016; SOFA bands as tabulated by MSD Manuals) ----
+  function qsofa(v) {
+    const rr = v.rr >= 22, sbp = v.sbp <= 100, ment = v.gcs <= 14;
+    return { score: (rr ? 1 : 0) + (sbp ? 1 : 0) + (ment ? 1 : 0), rr, sbp, ment };
+  }
+  function sofa(v, labs, onVaso) {
+    const pf = labs.pf;
+    const resp = pf < 100 && labs.vent ? 4 : pf < 200 && labs.vent ? 3 : pf < 300 ? 2 : pf < 400 ? 1 : 0;
+    const p = labs.plt;
+    const coag = p < 20 ? 4 : p < 50 ? 3 : p < 100 ? 2 : p < 150 ? 1 : 0;
+    const b = labs.bili;
+    const liver = b >= 12 ? 4 : b >= 6 ? 3 : b >= 2 ? 2 : b >= 1.2 ? 1 : 0;
+    const map = meanArterial(v.sbp, v.dbp);
+    const cardio = onVaso ? 3 : map < 70 ? 1 : 0;
+    const g = v.gcs;
+    const cns = g < 6 ? 4 : g <= 9 ? 3 : g <= 12 ? 2 : g <= 14 ? 1 : 0;
+    const c = labs.creat;
+    const renal = c >= 5 ? 4 : c >= 3.5 ? 3 : c >= 2 ? 2 : c >= 1.2 ? 1 : 0;
+    return { resp, coag, liver, cardio, cns, renal, total: resp + coag + liver + cardio + cns + renal, map };
+  }
+  // Triage: who gets a patch. Demo thresholds, to be set with clinicians.
+  function triageRule(v, infection) {
+    const q = qsofa(v);
+    const why = qWhy(v, q);
+    if (q.score >= 2) return { level: 'alert', q, why };
+    const sirsLike = infection && (v.temp >= 38 || v.temp < 36 || v.hr >= 100);
+    if (sirsLike) {
+      if (v.temp >= 38) why.push(`Fever ${v.temp.toFixed(1)} °C`);
+      if (v.hr >= 100) why.push(`Heart rate ${Math.round(v.hr)}/min`);
+      why.push('Infection suspected');
+    }
+    if (q.score === 1 || sirsLike) return { level: 'watch', q, why };
+    return { level: 'routine', q, why: ['No quick-score signs', 'No infection suspected'] };
+  }
+  function qWhy(v, q) {
+    const why = [];
+    if (q.rr) why.push(`Breathing ${Math.round(v.rr)}/min (22 or more)`);
+    if (q.sbp) why.push(`Systolic BP ${Math.round(v.sbp)} (100 or lower)`);
+    if (q.ment) why.push(`Confused, GCS ${v.gcs} (14 or lower)`);
+    return why;
+  }
+  // While the patch is on: alert when the quick score reaches 2, or lactate is high.
+  function monitorRule(v) {
+    const q = qsofa(v);
+    const why = qWhy(v, q);
+    const lacHigh = v.lac != null && v.lac >= 2;
+    if (lacHigh) why.push(`Lactate ${v.lac.toFixed(1)} mmol/L (2 or more)`);
+    const alert = q.score >= 2 || (v.lac != null && v.lac >= 4) || (lacHigh && q.score >= 1);
+    return { alert, q, why };
+  }
+
+  const ROLE_NAME = { nurse: 'Ward nurse', doctor: 'ER doctor', mrp: 'Responsible physician', icu: 'ICU team' };
+
+  class Sim {
+    constructor(def, opts) {
+      this.def = def;
+      this.interval = (opts && opts.interval) || 15;
+      this.reset();
+    }
+    reset() {
+      this.t = 0; this.queue = []; this.seq = 0;
+      this.log = []; this.anim = [];
+      this.status = { level: 'arriving', title: 'Arriving', text: 'Patient on the way in' };
+      this.display = {}; this.samples = []; this.scores = [];
+      this.patch = false; this.bedAt = null; this.triage = null; this.alert = null; this.response = null;
+      this.esc = { nurse: { state: 'idle' }, doctor: { state: 'idle' }, mrp: { state: 'idle' }, icu: { state: 'idle' } };
+      this.bundle = { lactate: null, cultures: null, access: null, abx: null, fluids: null, vaso: null };
+      this.labs = null; this.sofa = null; this.labsOrderedAt = null;
+      this.treatAt = null; this.fluidsAt = null; this.onVaso = false;
+      this.summary = null; this.done = false; this.nextScoreAt = null;
+      this.manual = this.def.mode === 'try' ? Object.assign({}, this.def.manualStart) : null;
+      this.location = 'entrance';
+      if (this.def.mode === 'try') this.setupTry(); else this.setupCase();
+    }
+
+    // ---- scheduler ----
+    at(t, fn) { this.queue.push({ t, fn, s: this.seq++ }); this.queue.sort((a, b) => a.t - b.t || a.s - b.s); }
+    after(dt, fn) { this.at(this.t + dt, fn); }
+    step(dt) {
+      const end = this.t + dt;
+      while (this.queue.length && this.queue[0].t <= end) {
+        const e = this.queue.shift();
+        this.t = e.t;
+        e.fn();
+      }
+      this.t = end;
+    }
+    nextEventTime() { return this.queue.length ? this.queue[0].t : null; }
+
+    // ---- output helpers ----
+    say(kind, who, text) { this.log.push({ t: this.t, kind, who, text }); }
+    act(cmd) { cmd.t = this.t; this.anim.push(cmd); }
+    setStatus(level, title, text) { this.status = { level, title, text }; this.act({ cmd: 'status', level }); }
+    clock(t) {
+      const m = Math.round(this.def.startClock + (t == null ? this.t : t));
+      return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    }
+
+    // ---- physiology ----
+    physio(t) {
+      if (this.manual) return Object.assign({}, this.manual);
+      const k = this.def.keys, s = this.def.seed || 1;
+      const v = {
+        hr: interp(k, t, 'hr') + wobble(t, s, 1.6),
+        rr: interp(k, t, 'rr') + wobble(t, s + 2, 0.35),
+        temp: interp(k, t, 'temp') + wobble(t, s + 4, 0.05),
+        sbp: interp(k, t, 'sbp') + wobble(t, s + 6, 1.2),
+        dbp: interp(k, t, 'dbp') + wobble(t, s + 8, 0.8),
+        spo2: interp(k, t, 'spo2') + wobble(t, s + 9, 0.3),
+        gcs: Math.round(interp(k, t, 'gcs')),
+        lac: interp(k, t, 'lac') + wobble(t, s + 11, 0.03)
+      };
+      if (this.fluidsAt != null && t > this.fluidsAt) {
+        const f = clamp((t - this.fluidsAt) / 30, 0, 1);
+        v.sbp += 8 * f; v.dbp += 5 * f;
+      }
+      if (this.treatAt != null && t > this.treatAt) {
+        const r = clamp((t - this.treatAt) / 200, 0, 0.85);
+        for (const key of Object.keys(NORMAL)) v[key] = lerp(v[key], NORMAL[key], r);
+        v.gcs = Math.round(v.gcs);
+      }
+      v.spo2 = Math.min(100, v.spo2);
+      return v;
+    }
+    values() {
+      const d = this.display, o = {};
+      for (const key of Object.keys(d)) o[key] = d[key].v;
+      return o;
+    }
+    setVital(key, v, src) { this.display[key] = { v, src, at: this.t }; }
+
+    // ---- scripted cases ----
+    setupCase() {
+      const d = this.def;
+      this.act({ cmd: 'reset', nurseBusy: !!d.nurseBusy });
+      this.say('info', 'Patient', `${d.patient.name} arrives at the ${d.patient.settingShort}: "${d.lines.arrive}"`);
+      this.act({ who: 'patient', cmd: 'walk', to: 'triageChair', dur: 3 });
+      this.at(3, () => { this.location = 'triage'; this.setStatus('arriving', 'At triage', 'Nurse taking vitals'); this.act({ who: 'patient', cmd: 'say', text: d.lines.arrive }); });
+      this.at(4, () => {
+        this.act({ who: 'nurse1', cmd: 'say', text: 'Let me check your vitals.' });
+        this.say('info', 'Triage nurse', 'Takes vitals: breathing, pulse, blood pressure, temperature, oxygen, alertness');
+      });
+      this.at(8, () => this.doTriage());
+    }
+    doTriage() {
+      const d = this.def, v = this.physio(this.t);
+      const src = 'Triage nurse';
+      for (const key of ['hr', 'rr', 'temp', 'sbp', 'dbp', 'spo2', 'gcs']) this.setVital(key, v[key], src);
+      const r = triageRule(this.values(), d.infection);
+      this.triage = Object.assign({ t: this.t }, r);
+      this.say('info', 'Badri', `Vitals in. Quick score (qSOFA) ${r.q.score} of 3.`);
+      if (r.level === 'alert') {
+        this.raiseAlert(r.why, true);
+      } else if (r.level === 'watch') {
+        this.setStatus('watch', 'Close to the line', r.why.join(' · '));
+        this.say('warn', 'Badri', `Close to the sepsis line (${r.why.join('; ')}). Apply a Badri patch.`);
+        this.act({ who: 'nurse1', cmd: 'say', text: 'I\'m putting a small patch on your arm.' });
+        this.after(2, () => {
+          this.patch = true;
+          this.act({ cmd: 'patch', on: true });
+          this.say('action', 'Triage nurse', 'Badri patch applied to the upper arm. Patient moved to a ward bed.');
+          this.act({ who: 'patient', cmd: 'walk', to: 'bed', dur: 4, then: 'lie' });
+          this.after(4, () => this.startMonitoring());
+        });
+      } else {
+        this.setStatus('routine', 'Routine', 'No sepsis signs at triage');
+        this.say('good', 'Badri', 'No sepsis signs. No patch needed. Routine care.');
+        this.routineVisit();
+      }
+    }
+    routineVisit() {
+      const d = this.def;
+      this.act({ who: 'patient', cmd: 'walk', to: 'clinicChair', dur: 3 });
+      this.after(3, () => { this.location = 'clinic'; });
+      this.after(5, () => {
+        this.act({ who: 'doctor', cmd: 'say', text: d.lines.doctor });
+        this.say('info', 'Doctor', `Check-up done: "${d.lines.doctor}"`);
+      });
+      this.after(10, () => {
+        this.act({ who: 'patient', cmd: 'walk', to: 'exit', dur: 4, then: 'hide' });
+        this.say('good', 'Patient', 'Goes home. No patch, no alarm.');
+      });
+      this.after(15, () => this.finish());
+    }
+    startMonitoring() {
+      this.location = 'ward';
+      this.bedAt = this.t;
+      this.setStatus('watch', 'Watching', `Patch reading every ${PATCH_SAMPLE} min · re-score every ${this.interval} min`);
+      this.say('info', 'Badri', `Patch online. Reading lactate, pulse, breathing and temperature every ${PATCH_SAMPLE} min. Re-scoring every ${this.interval} min.`);
+      this.sample();
+      this.rescore(true);
+    }
+    sample() {
+      if (this.done) return;
+      const v = this.physio(this.t);
+      const src = this.manual ? 'You (slider)' : 'Badri patch';
+      this.setVital('hr', v.hr, src); this.setVital('rr', v.rr, src);
+      this.setVital('temp', v.temp, src); this.setVital('lac', v.lac, src);
+      this.setVital('spo2', v.spo2, this.manual ? src : 'Bedside clip');
+      this.samples.push({ t: this.t, lac: v.lac, hr: v.hr, rr: v.rr });
+      this.act({ cmd: 'sample' });
+      this.after(PATCH_SAMPLE, () => this.sample());
+    }
+    rescore(baseline) {
+      if (this.done) return;
+      const v = this.physio(this.t);
+      this.setVital('sbp', v.sbp, this.manual ? 'You (slider)' : 'Bedside cuff');
+      this.setVital('dbp', v.dbp, this.manual ? 'You (slider)' : 'Bedside cuff');
+      this.setVital('gcs', v.gcs, this.manual ? 'You (slider)' : 'Nurse check');
+      if (this.manual) { for (const key of ['hr', 'rr', 'temp', 'lac', 'spo2']) this.setVital(key, v[key], 'You (slider)'); }
+      const r = monitorRule(this.values());
+      this.scores.push({ t: this.t, q: r.q.score, lac: this.values().lac, alert: r.alert });
+      if (this.alert) return;
+      if (r.alert) { this.raiseAlert(r.why, false); return; }
+      this.say('tick', 'Badri', `${baseline ? 'Baseline' : 'Re-score'}: qSOFA ${r.q.score}, lactate ${this.values().lac.toFixed(1)} mmol/L. Keep watching.`);
+      this.nextScoreAt = this.t + this.interval;
+      const due = this.nextScoreAt;
+      this.at(due, () => { if (this.nextScoreAt === due) this.rescore(false); });
+    }
+    rescoreNow() {
+      if (this.done || this.alert || !this.patch) return;
+      this.nextScoreAt = null;
+      this.rescore(false);
+    }
+    raiseAlert(why, atTriage) {
+      this.alert = { t: this.t, why, atTriage };
+      this.nextScoreAt = null;
+      this.setStatus('alert', 'Sepsis alert', why.join(' · '));
+      this.say('alert', 'Badri', `SEPSIS ALERT: ${why.join('; ')}. Ward nurse notified.`);
+      this.act({ cmd: 'alarm', on: true });
+      this.esc.nurse = { state: 'notified', at: this.t };
+      const d = this.def;
+      if (d.nurseBusy) this.act({ who: 'nurse2', cmd: 'say', text: 'With another patient, can\'t look yet.' });
+      this.after(ACK_WINDOW, () => {
+        if (this.response) return;
+        this.page('doctor', `No response in ${ACK_WINDOW} min. ER doctor paged.`);
+        this.after(SECOND_WINDOW, () => {
+          if (this.response) return;
+          this.page('mrp', `Still no response. Responsible physician paged.`);
+          this.page('icu', 'ICU team paged.');
+        });
+      });
+      if (d.nurseAck != null) this.after(d.nurseAck, () => this.acknowledge('nurse'));
+    }
+    page(role, text) {
+      if (this.esc[role].state !== 'idle') return;
+      this.esc[role] = { state: 'notified', at: this.t };
+      this.say('alert', 'Badri', text);
+      this.act({ cmd: 'page', role });
+      if (role === 'doctor' && this.def.doctorAck != null) this.after(this.def.doctorAck, () => this.acknowledge('doctor'));
+    }
+    acknowledge(role) {
+      if (this.done || !this.alert) return;
+      const e = this.esc[role];
+      if (e.state === 'ack') return;
+      this.esc[role] = { state: 'ack', at: e.at != null ? e.at : this.t, ackAt: this.t };
+      this.say('good', ROLE_NAME[role], 'Acknowledged the alert. Heading to the bedside.');
+      if (!this.response) this.respond(role);
+    }
+    respond(role) {
+      const d = this.def, t0 = this.t;
+      this.response = { t: t0, by: role };
+      this.act({ cmd: 'alarm', on: false });
+      this.setStatus('respond', 'First hour running', 'Hour-1 sepsis bundle in progress');
+      const walker = role === 'nurse' ? 'nurse2' : role === 'doctor' ? 'doctor' : 'doctor';
+      this.act({ who: walker, cmd: 'walk', to: walker === 'nurse2' ? 'bedNurse' : 'bedDoctor', dur: 2 });
+      const lac = this.values().lac;
+      this.bundle.lactate = { t: t0, text: `Lactate ${lac.toFixed(1)} mmol/L, already measured by the patch` };
+      if (role === 'nurse') {
+        this.after(2, () => this.act({ who: 'nurse2', cmd: 'say', text: d.lines.nurseAtBed || 'Badri flagged you. I\'m calling the doctor.' }));
+        this.after(3, () => {
+          if (this.esc.doctor.state === 'idle') { this.esc.doctor = { state: 'notified', at: this.t }; this.say('action', 'Ward nurse', 'Calls the ER doctor to the bedside.'); }
+          this.after(1, () => {
+            if (this.esc.doctor.state !== 'ack') { this.esc.doctor = Object.assign({}, this.esc.doctor, { state: 'ack', ackAt: this.t }); this.say('good', 'ER doctor', 'On the way.'); }
+            this.act({ who: 'doctor', cmd: 'walk', to: 'bedDoctor', dur: 3 });
+          });
+        });
+      } else {
+        this.after(1, () => this.act({ who: 'nurse2', cmd: 'walk', to: 'bedNurse', dur: 2 }));
+      }
+      const base = role === 'nurse' ? 7 : 3;
+      this.after(base, () => {
+        this.labsOrderedAt = this.t;
+        this.say('action', 'ER doctor', 'Orders blood tests for the full SOFA score: platelets, bilirubin, creatinine, blood gas.');
+        this.act({ who: 'doctor', cmd: 'say', text: 'Start the hour-1 bundle.' });
+        this.after(LAB_TURNAROUND, () => this.labsBack());
+      });
+      this.after(base + 2, () => { this.bundle.cultures = { t: this.t, text: 'Blood cultures taken' }; this.say('action', 'Ward nurse', 'Blood cultures taken.'); });
+      let accessAt;
+      if (d.ivFails >= 2) {
+        this.after(base + 4, () => this.say('warn', 'Ward nurse', 'IV attempt 1 failed. Veins not found.'));
+        this.after(base + 7, () => {
+          this.say('alert', 'Badri', 'Second failed IV attempt logged. Anaesthesia paged for a central or bone line.');
+          this.act({ who: 'anaes', cmd: 'appear', at: 'icuDoor' });
+          this.act({ who: 'anaes', cmd: 'walk', to: 'bedAnaes', dur: 4 });
+        });
+        accessAt = base + 14;
+        this.after(accessAt, () => { this.bundle.access = { t: this.t, text: 'Line placed by anaesthesia after 2 failed IVs' }; this.say('good', 'Anaesthetist', 'Line in.'); });
+      } else {
+        accessAt = base + 4;
+        this.after(accessAt, () => { this.bundle.access = { t: this.t, text: 'IV line in, first attempt' }; this.say('action', 'Ward nurse', 'IV line in.'); });
+      }
+      this.after(accessAt + 2, () => {
+        this.treatAt = this.t; this.fluidsAt = this.t;
+        const minute = Math.round(this.t - this.alert.t);
+        this.bundle.abx = { t: this.t, text: `Antibiotics given, minute ${minute} of the first hour` };
+        this.bundle.fluids = { t: this.t, text: d.fluidText || 'IV fluids started' };
+        this.say('good', 'ER doctor', `Antibiotics and IV fluids started, ${minute} min after the alert.`);
+        this.act({ cmd: 'treat' });
+        this.after(18, () => {
+          const v = this.physio(this.t);
+          const map = meanArterial(v.sbp, v.dbp);
+          this.setVital('sbp', v.sbp, 'Bedside cuff'); this.setVital('dbp', v.dbp, 'Bedside cuff');
+          if (map < 65) {
+            this.onVaso = true;
+            this.bundle.vaso = { t: this.t, text: `MAP ${Math.round(map)} after fluids: vasopressors started` };
+            this.say('warn', 'ER doctor', `MAP still ${Math.round(map)} after fluids. Vasopressors started.`);
+          } else {
+            this.bundle.vaso = { t: this.t, text: `Not needed: MAP ${Math.round(map)} after fluids (target 65 or more)` };
+            this.say('good', 'ER doctor', `MAP ${Math.round(map)} after fluids. No vasopressors needed.`);
+          }
+        });
+      });
+    }
+    labsBack() {
+      const v = Object.assign(this.physio(this.t), {});
+      const vals = this.values();
+      vals.sbp = v.sbp; vals.dbp = v.dbp; vals.gcs = vals.gcs != null ? vals.gcs : v.gcs;
+      this.labs = Object.assign({ t: this.t }, this.def.labs);
+      this.sofa = sofa(vals, this.def.labs, this.onVaso);
+      const confirmed = this.sofa.total >= 2;
+      this.say(confirmed ? 'alert' : 'info', 'Lab', `Results back. Full SOFA ${this.sofa.total}${confirmed ? ', a rise of 2 or more: sepsis confirmed (Sepsis-3).' : '.'}`);
+      if (confirmed) this.setStatus('confirmed', 'Sepsis confirmed', `SOFA ${this.sofa.total} · treatment already running`);
+      this.after(6, () => this.finish());
+    }
+    finish() {
+      if (this.done) return;
+      this.done = true;
+      const d = this.def;
+      const rows = [];
+      if (this.alert) {
+        const tri = this.triage ? this.triage.t : 0;
+        const fromArrival = this.alert.t;
+        rows.push({ label: 'Badri alert', value: this.clock(this.alert.t), note: `${fmtDur(fromArrival)} after ${d.mode === 'try' ? 'the start' : 'arrival'}` });
+        if (this.bundle.abx) rows.push({ label: 'Antibiotics', value: `minute ${Math.round(this.bundle.abx.t - this.alert.t)}`, note: 'of the first hour' });
+        if (d.withoutBadri) rows.push(d.withoutBadri);
+        else {
+          const rounds = tri + ROUTINE_ROUNDS;
+          rows.push({ label: 'Next routine vitals without Badri', value: this.clock(rounds), note: `${fmtDur(rounds - this.alert.t)} after Badri's alert` });
+        }
+        if (this.sofa) rows.push({ label: 'Full SOFA when labs came back', value: String(this.sofa.total), note: this.sofa.total >= 2 ? 'sepsis confirmed' : 'below sepsis line' });
+        this.summary = { title: d.summaryTitle, rows };
+        this.setStatus(this.sofa && this.sofa.total >= 2 ? 'confirmed' : 'respond', this.sofa && this.sofa.total >= 2 ? 'Sepsis confirmed, treated early' : 'Treated', 'Simulation complete');
+      } else {
+        rows.push({ label: 'Patch', value: 'Not needed', note: 'no sepsis signs at triage' });
+        rows.push({ label: 'Alarms', value: '0', note: 'Badri stays quiet when nothing is wrong' });
+        this.summary = { title: d.summaryTitle, rows };
+      }
+      this.say('info', 'Simulation', 'Case complete.');
+      this.act({ cmd: 'done' });
+    }
+
+    // ---- try-it mode ----
+    setupTry() {
+      this.act({ cmd: 'reset', inBed: true });
+      this.patch = true;
+      this.act({ cmd: 'patch', on: true });
+      this.location = 'ward';
+      this.say('info', 'You', 'Patient in bed with the Badri patch on. Move the sliders to change the vitals.');
+      this.startMonitoring();
+    }
+    setManual(key, value) {
+      if (!this.manual) return;
+      this.manual[key] = value;
+      if (this.patch && !this.done) this.setVital(key, value, 'You (slider)');
+    }
+  }
+
+  function fmtDur(min) {
+    const m = Math.max(0, Math.round(min));
+    const h = Math.floor(m / 60), r = m % 60;
+    return h ? `${h} h ${String(r).padStart(2, '0')} min` : `${r} min`;
+  }
+
+  // ---- cases ----
+  const CASES = [
+    {
+      id: 'er', tab: 'ER walk-in', mode: 'case', seed: 1.3, startClock: 9 * 60,
+      title: 'Walk-in to the emergency room',
+      blurb: 'Fever and chills. Looks "fine" at triage: the quick score alone says 0.',
+      patient: { name: 'Omar K.', age: 41, sex: 'M', setting: 'Emergency department', settingShort: 'ER', complaint: 'Fever and chills for 2 days, burning when passing urine' },
+      infection: true, nurseAck: null, doctorAck: 2, ivFails: 2, nurseBusy: true,
+      fluidText: 'IV fluids, 30 mL/kg, started',
+      lines: { arrive: 'I\'ve had fever and chills for two days.', nurseAtBed: 'Badri flagged you. I\'m calling the doctor.' },
+      keys: [
+        { t: 0, hr: 112, rr: 21, temp: 38.9, sbp: 114, dbp: 72, spo2: 97, gcs: 15, lac: 1.7 },
+        { t: 30, hr: 114, rr: 21.5, temp: 39.0, sbp: 110, dbp: 70, spo2: 97, gcs: 15, lac: 1.8 },
+        { t: 50, hr: 118, rr: 23, temp: 39.1, sbp: 106, dbp: 66, spo2: 96, gcs: 15, lac: 2.0 },
+        { t: 70, hr: 124, rr: 25, temp: 39.2, sbp: 99, dbp: 60, spo2: 95, gcs: 15, lac: 2.5 },
+        { t: 100, hr: 128, rr: 26, temp: 39.3, sbp: 92, dbp: 54, spo2: 95, gcs: 15, lac: 2.9 },
+        { t: 200, hr: 134, rr: 28, temp: 39.3, sbp: 84, dbp: 48, spo2: 93, gcs: 13, lac: 3.8 }
+      ],
+      labs: { plt: 128, bili: 1.5, creat: 1.7, pf: 360, vent: false },
+      summaryTitle: 'Caught before his blood pressure crashed'
+    },
+    {
+      id: 'checkup', tab: 'Check-up: "sore throat"', mode: 'case', seed: 2.7, startClock: 9 * 60,
+      title: 'Routine check-up, "just a sore throat"',
+      blurb: 'A diabetes check-up. She mentions a sore throat. Her chest is infected.',
+      patient: { name: 'Fatima A.', age: 78, sex: 'F', setting: 'Outpatient clinic', settingShort: 'clinic', complaint: 'Routine diabetes check-up; mentions a sore throat' },
+      infection: true, nurseAck: 2, doctorAck: null, ivFails: 0,
+      lines: { arrive: 'Just my check-up. I have a bit of a sore throat.', nurseAtBed: 'Your patch flagged a change. I\'m calling the doctor.' },
+      keys: [
+        { t: 0, hr: 98, rr: 22, temp: 37.8, sbp: 124, dbp: 74, spo2: 94, gcs: 15, lac: 1.7 },
+        { t: 30, hr: 100, rr: 22.5, temp: 37.9, sbp: 120, dbp: 72, spo2: 93, gcs: 15, lac: 1.9 },
+        { t: 50, hr: 104, rr: 23, temp: 38.1, sbp: 116, dbp: 70, spo2: 92, gcs: 14, lac: 2.2 },
+        { t: 90, hr: 108, rr: 24, temp: 38.3, sbp: 110, dbp: 66, spo2: 91, gcs: 14, lac: 2.6 },
+        { t: 200, hr: 112, rr: 26, temp: 38.4, sbp: 104, dbp: 62, spo2: 90, gcs: 13, lac: 3.1 }
+      ],
+      labs: { plt: 165, bili: 0.9, creat: 1.4, pf: 280, vent: false },
+      withoutBadri: { label: 'Without Badri', value: 'Sent home', note: 'one borderline reading at a routine check-up' },
+      summaryTitle: 'A "sore throat" that was sepsis, caught at a check-up'
+    },
+    {
+      id: 'healthy', tab: 'Check-up: healthy', mode: 'case', seed: 4.1, startClock: 11 * 60,
+      title: 'Routine check-up, healthy',
+      blurb: 'Annual check-up. Normal vitals. Badri should stay quiet.',
+      patient: { name: 'Sara M.', age: 29, sex: 'F', setting: 'Outpatient clinic', settingShort: 'clinic', complaint: 'Annual check-up' },
+      infection: false, nurseAck: null, doctorAck: null, ivFails: 0,
+      lines: { arrive: 'Just my yearly check-up.', doctor: 'Everything looks normal. See you next year.' },
+      keys: [{ t: 0, hr: 74, rr: 14, temp: 36.8, sbp: 116, dbp: 74, spo2: 99, gcs: 15, lac: 1.0 }, { t: 60, hr: 72, rr: 14, temp: 36.8, sbp: 117, dbp: 75, spo2: 99, gcs: 15, lac: 1.0 }],
+      labs: { plt: 240, bili: 0.6, creat: 0.8, pf: 450, vent: false },
+      summaryTitle: 'No sepsis signs, no patch, no false alarm'
+    },
+    {
+      id: 'try', tab: 'Try it yourself', mode: 'try', seed: 5, startClock: 14 * 60,
+      title: 'Try it yourself',
+      blurb: 'A patient in bed with the patch on. Move the vitals and watch Badri re-score.',
+      patient: { name: 'Demo patient', age: 55, sex: '', setting: 'Ward', settingShort: 'ward', complaint: 'Admitted with a suspected infection' },
+      infection: true, nurseAck: null, doctorAck: null, ivFails: 0,
+      lines: { nurseAtBed: 'Badri flagged you. I\'m calling the doctor.' },
+      manualStart: { hr: 96, rr: 20, temp: 38.2, sbp: 112, dbp: 70, spo2: 96, gcs: 15, lac: 1.6 },
+      keys: [{ t: 0, hr: 96, rr: 20, temp: 38.2, sbp: 112, dbp: 70, spo2: 96, gcs: 15, lac: 1.6 }],
+      labs: { plt: 140, bili: 1.3, creat: 1.5, pf: 330, vent: false },
+      summaryTitle: 'Your scenario'
+    }
+  ];
+
+  const api = { Sim, CASES, qsofa, sofa, triageRule, monitorRule, meanArterial, fmtDur, ROLE_NAME, constants: { ACK_WINDOW, SECOND_WINDOW, LAB_TURNAROUND, ROUTINE_ROUNDS, PATCH_SAMPLE } };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.BadriEngine = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+
+/* World units are metres. x runs west→east, z runs north→south, the camera's default view looks north. */
+const E = window.BadriEngine;
+const $ = (id) => document.getElementById(id);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const C = { stowe: 0xEDE6DB, dove: 0x7F7A83, lake: 0x1C5469, ochre: 0xBF8945, raku: 0x5B595A, alert: 0xA8432F };
+
+/* ---------- renderer, camera, light ---------- */
+const host = $('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+host.appendChild(renderer.domElement);
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels';
+host.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(C.stowe);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+camera.position.set(0, 21, 16.5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 1.0;
+controls.maxDistance = 70;
+controls.target.set(0, 0, -0.3);
+
+scene.add(new THREE.HemisphereLight(0xfffaf2, 0xcdbfa9, 0.42));
+const sun = new THREE.DirectionalLight(0xfff6ec, 1.05);
+sun.position.set(-6, 26, 8);
+sun.castShadow = true;
+const LOWFX = /lowfx/.test(location.search);
+sun.shadow.mapSize.set(LOWFX ? 1024 : 4096, LOWFX ? 1024 : 4096);
+Object.assign(sun.shadow.camera, { left: -17, right: 17, top: 13, bottom: -13, near: 4, far: 60 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.02;
+scene.add(sun, sun.target);
+const roomLights = [];
+for (const [x, z] of [[-8.5, -4.6], [-0.2, -5.2], [4.3, -5.2], [-8.5, 4.8], [2.2, 3.0], [10.5, -4.6]]) {
+  const l = new THREE.PointLight(0xfff0dc, 0.9, 0, 2);
+  l.position.set(x, 2.45, z); scene.add(l); roomLights.push(l);
+}
+// clinical ceiling light panels (soft area light, 4000 K-ish)
+RectAreaLightUniformsLib.init();
+for (const [x, z, w, d, i] of [[-8.5, -5.0, 1.2, 0.6, 9], [-8.5, -3.0, 1.2, 0.6, 6], [-1.5, -6.6, 1.2, 0.6, 7], [2.0, -6.6, 1.2, 0.6, 9], [5.5, -6.6, 1.2, 0.6, 7], [2.0, -3.4, 1.2, 0.6, 5], [-8.5, 5.0, 1.2, 0.6, 8], [2.25, 3.4, 1.8, 0.6, 7], [-6, 0.15, 1.2, 0.6, 4], [6, 0.15, 1.2, 0.6, 4]]) {
+  const r = new THREE.RectAreaLight(0xfff5ea, i, w, d);
+  r.position.set(x, 2.66, z); r.lookAt(x, 0, z); scene.add(r);
+}
+const alarmLight = new THREE.PointLight(C.alert, 0, 0, 2);
+alarmLight.position.set(2.0, 1.9, -7.2);
+scene.add(alarmLight);
+
+/* ---------- textures & materials ---------- */
+let seed = 11;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const oakTex = canvasTex(1024, 1024, (g, w, h) => {
+  const rows = 8, rh = h / rows;
+  for (let r = 0; r < rows; r++) {
+    let x = -rnd() * w * 0.6;
+    while (x < w) {
+      const len = w * (0.45 + rnd() * 0.5), k = 0.9 + rnd() * 0.15;
+      g.fillStyle = `rgb(${Math.round(216 * k)},${Math.round(184 * k)},${Math.round(142 * k)})`;
+      g.fillRect(x, r * rh, len, rh);
+      for (let i = 0; i < 16; i++) {
+        g.strokeStyle = `rgba(122,84,48,${0.04 + rnd() * 0.07})`; g.lineWidth = 0.5 + rnd() * 1.6;
+        g.beginPath(); let y = r * rh + 2 + rnd() * (rh - 4); g.moveTo(x, y);
+        for (let s = 1; s <= 8; s++) { y = Math.min(r * rh + rh - 2, Math.max(r * rh + 2, y + (rnd() - 0.5) * 3)); g.lineTo(x + (len * s) / 8, y); }
+        g.stroke();
+      }
+      g.fillStyle = 'rgba(96,66,38,0.32)'; g.fillRect(Math.max(0, x), r * rh, 2, rh);
+      x += len;
+    }
+    g.fillStyle = 'rgba(96,66,38,0.28)'; g.fillRect(0, r * rh, w, 2);
+  }
+});
+const tileTex = canvasTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#E9E3D9'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 6000; i++) { g.fillStyle = rnd() < 0.5 ? 'rgba(91,89,90,0.05)' : 'rgba(255,255,255,0.4)'; g.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 2, 1 + rnd() * 2); }
+  g.fillStyle = 'rgba(91,89,90,0.2)';
+  for (const p of [0, w / 2]) { g.fillRect(p, 0, 2, h); g.fillRect(0, p, w, 2); }
+});
+const ceilTex = canvasTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#F4F0E9'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 2500; i++) { g.fillStyle = 'rgba(91,89,90,0.08)'; g.fillRect(rnd() * w, rnd() * h, 1.2, 1.2); }
+  g.fillStyle = 'rgba(127,122,131,0.45)';
+  for (const p of [0, w / 2]) { g.fillRect(p, 0, 3, h); g.fillRect(0, p, w, 3); }
+});
+const skyTex = canvasTex(256, 256, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#BFD9E3'); gr.addColorStop(0.65, '#E9EEE9'); gr.addColorStop(1, '#F3EADB');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(127,122,131,0.28)';
+  for (let x = 0; x < w;) { const bw = 14 + rnd() * 30, bh = 30 + rnd() * 70; g.fillRect(x, h - bh, bw, bh); x += bw + 4; }
+});
+const glowTex = canvasTex(256, 128, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  const side = g.createLinearGradient(0, 0, w, 0);
+  side.addColorStop(0, 'rgba(0,0,0,1)'); side.addColorStop(0.12, 'rgba(0,0,0,0)'); side.addColorStop(0.88, 'rgba(0,0,0,0)'); side.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = side; g.fillRect(0, 0, w, h);
+});
+
+const blobTex = canvasTex(128, 128, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+});
+blobTex.wrapS = blobTex.wrapT = THREE.ClampToEdgeWrapping;
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.85 }, o));
+const M = {
+  wall: mat(C.stowe, { roughness: 0.95 }),
+  lakeWall: mat(C.lake, { roughness: 0.92 }),
+  cap: mat(C.raku, { roughness: 0.9 }),
+  skirting: mat(C.raku, { roughness: 0.6 }),
+  oak: mat(0xffffff, { map: oakTex, roughness: 0.5 }),
+  tile: mat(0xffffff, { map: tileTex, roughness: 0.32 }),
+  ceiling: mat(0xffffff, { map: ceilTex, roughness: 0.95 }),
+  ground: mat(0xD3CABC, { roughness: 1 }),
+  stripe: mat(C.lake, { roughness: 0.7 }),
+  hpl: mat(0xF1ECE3, { roughness: 0.55 }),
+  top: mat(0xF8F5EF, { roughness: 0.3 }),
+  flute: mat(0xD8BB90, { roughness: 0.48 }),
+  oakPanel: mat(0xCFAF84, { roughness: 0.55 }),
+  metal: mat(0xC4C1C5, { roughness: 0.3, metalness: 0.7 }),
+  dark: mat(C.raku, { roughness: 0.5, metalness: 0.25 }),
+  black: mat(0x232223, { roughness: 0.45 }),
+  dove: mat(C.dove, { roughness: 0.8 }),
+  ochre: mat(C.ochre, { roughness: 0.45 }),
+  sheet: mat(0xF9F7F3, { roughness: 0.92 }),
+  pillow: mat(0xFFFFFF, { roughness: 0.95 }),
+  blanket: mat(0x3F7487, { roughness: 1 }),
+  rail: mat(C.lake, { roughness: 0.4 }),
+  board: mat(0xE4DACB, { roughness: 0.5 }),
+  fabric: mat(C.lake, { roughness: 1 }),
+  curtain: mat(0xC4BEC7, { roughness: 1, side: THREE.DoubleSide }),
+  glass: new THREE.MeshStandardMaterial({ color: 0xD7E7EA, roughness: 0.05, transparent: true, opacity: 0.25, depthWrite: false }),
+  frosted: new THREE.MeshStandardMaterial({ color: 0xE9EEEE, roughness: 0.3, transparent: true, opacity: 0.75 }),
+  sky: new THREE.MeshBasicMaterial({ map: skyTex, toneMapped: false }),
+  leaf: mat(0x5E7A50, { roughness: 0.75, flatShading: true }),
+  leaf2: mat(0x71905C, { roughness: 0.75, flatShading: true }),
+  pot: mat(0xE7DFD3, { roughness: 0.6 }),
+  led: new THREE.MeshStandardMaterial({ color: C.ochre, emissive: 0xF0B26A, emissiveIntensity: 2.4 }),
+  lamp: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xFFE7C4, emissiveIntensity: 1.6 }),
+  panelLight: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xFFF6EA, emissiveIntensity: 1.1 }),
+  wash: new THREE.MeshBasicMaterial({ map: glowTex, color: 0xE9A85E, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
+  green: mat(0x5E8E6A, { roughness: 0.5 }),
+  clear: new THREE.MeshStandardMaterial({ color: 0xE6F0F2, roughness: 0.1, transparent: true, opacity: 0.55 }),
+  paper: mat(0xFFFFFF, { roughness: 0.95 }),
+  blob: new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, toneMapped: false })
+};
+function contact(x, z, w, d, parent = scene, rotY = 0) {   // soft contact shadow on the floor
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), M.blob);
+  m.rotation.set(-Math.PI / 2, 0, rotY); m.position.set(x, 0.006, z); m.renderOrder = 1; parent.add(m); return m;
+}
+
+/* ---------- geometry helpers ---------- */
+function group(x = 0, y = 0, z = 0, rotY = 0, parent = scene) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; parent.add(g); return g;
+}
+function box(w, h, d, material, x, y, z, parent = scene, o = {}) {
+  const r = o.round ? Math.min(o.round, Math.min(w, h, d) / 2 - 0.001) : 0;
+  const geo = r > 0 ? new RoundedBoxGeometry(w, h, d, 3, r) : new THREE.BoxGeometry(w, h, d);
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z); m.castShadow = o.cast !== false; m.receiveShadow = true;
+  parent.add(m); return m;
+}
+function cyl(rt, rb, h, material, x, y, z, parent = scene, seg = 20, o = {}) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg, 1, !!o.open), material);
+  m.position.set(x, y, z); m.castShadow = o.cast !== false; m.receiveShadow = true;
+  parent.add(m); return m;
+}
+function sphere(r, material, x, y, z, parent = scene, o = {}) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, o.seg || 20, o.seg2 || 14, 0, Math.PI * 2, 0, o.theta || Math.PI), material);
+  m.position.set(x, y, z); m.castShadow = o.cast !== false; parent.add(m); return m;
+}
+function plane(w, d, material, x, y, z, unitX = 1, unitZ = 1) {
+  const g = new THREE.PlaneGeometry(w, d);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / unitX, uv.getY(i) * d / unitZ);
+  const m = new THREE.Mesh(g, material);
+  m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true;
+  scene.add(m); return m;
+}
+const halfCyl = new THREE.CylinderGeometry(1, 1, 1, 12, 1, false, -Math.PI / 2, Math.PI);
+function fluted(parent, w, h, x, y, z) {
+  const n = Math.max(3, Math.round(w / 0.07)), r = w / (2 * n);
+  const im = new THREE.InstancedMesh(halfCyl, M.flute, n);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(r, h, r * 0.85);
+  for (let i = 0; i < n; i++) { m4.compose(new THREE.Vector3(-w / 2 + r + i * 2 * r, 0, 0), q, s); im.setMatrixAt(i, m4); }
+  im.castShadow = true; im.receiveShadow = true; im.position.set(x, y, z); parent.add(im); return im;
+}
+function screenPlane(w, h, tex, parent, x, y, z) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function dynCanvas(w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return { c, g: c.getContext('2d'), t };
+}
+
+/* ---------- floors, ceiling ---------- */
+plane(90, 70, M.ground, 0, -0.012, 0);
+plane(26, 16, M.oak, 0, 0, 0, 3.0, 1.52);
+plane(12.94, 6.44, M.tile, 2.5, 0.002, -4.75, 1.2, 1.2);   // ward
+plane(3.94, 6.44, M.tile, 11, 0.002, -4.75, 1.2, 1.2);     // lab
+plane(8.94, 6.14, M.tile, -8.5, 0.002, 4.9, 1.2, 1.2);     // clinic
+plane(24.6, 0.07, M.stripe, -0.2, 0.004, 1.42);            // wayfinding line
+plane(0.07, 3.1, M.stripe, 12.06, 0.004, 2.95);
+plane(1.4, 2.6, M.black, -12.2, 0.004, 0.15);              // entrance mat
+const ceiling = new THREE.Group(); scene.add(ceiling);
+{
+  const geo = new THREE.PlaneGeometry(26, 16);
+  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 26 / 1.2, uv.getY(i) * 16 / 1.2);
+  const c = new THREE.Mesh(geo, M.ceiling); c.rotation.x = Math.PI / 2; c.position.set(0, 2.7, 0); ceiling.add(c);
+  for (let x = -11.4; x <= 12; x += 2.4) for (const z of [-6.0, -3.3, 0.15, 3.6, 6.3]) box(0.58, 0.02, 0.58, M.panelLight, x, 2.69, z, ceiling, { cast: false });
+}
+
+/* ---------- walls ---------- */
+const H = 2.7, T = 0.12;
+function wall(x0, z0, x1, z1, material = M.wall) {
+  const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+  const len = alongX ? Math.abs(x1 - x0) : Math.abs(z1 - z0);
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = alongX ? len : T, d = alongX ? T : len;
+  box(w, H, d, material, cx, H / 2, cz);
+  box(w + 0.002, 0.012, d + 0.002, M.cap, cx, H + 0.006, cz, scene, { cast: false });
+  box(alongX ? len : T + 0.03, 0.1, alongX ? T + 0.03 : len, M.skirting, cx, 0.05, cz, scene, { cast: false });
+}
+function lintel(x0, x1, z, alongX = true) {
+  const w = Math.abs(x1 - x0), c = (x0 + x1) / 2;
+  if (alongX) { box(w, 0.55, T, M.wall, c, 2.425, z); box(w, 0.05, T + 0.04, M.dark, c, 2.15, z); for (const x of [x0, x1]) box(0.06, 2.15, T + 0.05, M.dark, x, 1.075, z); }
+  else { box(T, 0.55, w, M.wall, z, 2.425, c); box(T + 0.04, 0.05, w, M.dark, z, 2.15, c); for (const v of [x0, x1]) box(T + 0.05, 2.15, 0.06, M.dark, z, 1.075, v); }
+}
+wall(-13, -8, 13, -8);
+wall(-13, -8, -13, -1.5); wall(-13, 1.8, -13, 8);
+wall(13, -8, 13, 3.0); wall(13, 6.0, 13, 8);
+wall(-13, 8, 13, 8);
+wall(-13, -1.5, -9.6, -1.5); wall(-7.4, -1.5, -4, -1.5); lintel(-9.6, -7.4, -1.5);
+wall(-4, -1.5, 1.0, -1.5); wall(3.0, -1.5, 9, -1.5); lintel(1.0, 3.0, -1.5);
+wall(9, -1.5, 10, -1.5); wall(12, -1.5, 13, -1.5); lintel(10, 12, -1.5);
+wall(-4, -8, -4, -1.5); wall(9, -8, 9, -1.5);
+wall(-13, 1.8, -9.6, 1.8); wall(-7.4, 1.8, -4, 1.8); lintel(-9.6, -7.4, 1.8);
+wall(-4, 1.8, -4, 8);
+wall(-0.6, 5.2, 5.1, 5.2, M.lakeWall);   // nurse-station feature wall
+lintel(3.0, 6.0, 13, false);
+// open door leaves
+box(0.04, 2.1, 1.0, M.board, -9.55, 1.05, -2.05);
+box(0.04, 2.1, 1.0, M.board, -9.55, 1.05, 2.35);
+box(0.04, 2.1, 0.95, M.board, 1.05, 1.05, -2.02); box(0.04, 2.1, 0.95, M.board, 2.95, 1.05, -2.02);
+// feature panels on wall faces
+box(8.86, 2.68, 0.02, M.lakeWall, -8.5, 1.35, -7.93, scene, { cast: false });           // triage back wall
+box(12.86, 1.0, 0.02, M.lakeWall, 2.5, 0.5, -7.93, scene, { cast: false });             // ward wainscot
+box(12.86, 0.06, 0.04, M.dark, 2.5, 1.0, -7.92, scene, { cast: false });
+// entrance: glass storefront and sliding doors
+box(T, 0.3, 3.3, M.dark, -13, 2.55, 0.15);
+for (const z of [-1.5, 1.8]) box(0.1, 2.4, 0.1, M.dark, -13, 1.2, z);
+const doorL = box(0.04, 2.35, 1.62, M.glass, -13, 1.18, -0.66, scene, { cast: false });
+const doorR = box(0.04, 2.35, 1.62, M.glass, -13, 1.18, 0.96, scene, { cast: false });
+for (const d of [doorL, doorR]) { box(0.06, 2.35, 0.04, M.dark, 0, 0, 0.79, d); box(0.06, 2.35, 0.04, M.dark, 0, 0, -0.79, d); }
+// ICU doors and sign
+const icuDoors = [];
+for (const s of [-1, 1]) {
+  const hinge = group(12.96, 0, 4.5 + 1.5 * s, 0);
+  const leaf = box(0.05, 2.1, 1.46, M.hpl, 0, 1.05, -0.73 * s, hinge);
+  box(0.06, 0.6, 0.35, M.frosted, 0, 1.45, -0.73 * s, hinge, { cast: false });
+  box(0.07, 0.25, 0.12, M.metal, -0.01, 1.05, -1.25 * s, hinge);
+  icuDoors.push({ hinge, s, open: 0 });
+}
+const icuSign = dynCanvas(256, 96);
+const icuSignMesh = screenPlane(0.9, 0.34, icuSign.t, scene, 12.92, 2.42, 4.5);
+icuSignMesh.rotation.y = -Math.PI / 2;
+let icuFlash = false;
+function drawIcuSign(on) {
+  const g = icuSign.g; g.fillStyle = on ? '#A8432F' : '#1C5469'; g.fillRect(0, 0, 256, 96);
+  g.fillStyle = '#EDE6DB'; g.font = '700 52px "Inter Tight", Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('ICU', 128, 50); icuSign.t.needsUpdate = true;
+}
+drawIcuSign(false);
+
+/* ---------- furniture ---------- */
+function counter(x, z, w, rotY) {
+  const g = group(x, 0, z, rotY);
+  const D = 0.75, Hc = 1.05;
+  box(w, Hc - 0.07, D - 0.08, M.hpl, 0, 0.07 + (Hc - 0.07) / 2, -0.04, g);
+  fluted(g, w - 0.02, Hc - 0.12, 0, 0.085 + (Hc - 0.12) / 2, D / 2 - 0.08);
+  box(w + 0.08, 0.04, D + 0.06, M.top, 0, Hc + 0.02, 0, g, { round: 0.012 });
+  box(w - 0.1, 0.03, 0.55, M.top, 0, 0.74, -D / 2 - 0.25, g, { round: 0.01 });
+  for (const s of [-1, 1]) box(0.04, 0.72, 0.5, M.hpl, s * (w / 2 - 0.08), 0.37, -D / 2 - 0.25, g);
+  box(w - 0.06, 0.02, 0.025, M.led, 0, 0.045, D / 2 - 0.05, g, { cast: false });
+  const wash = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.5, 0.9), M.wash);
+  wash.rotation.x = -Math.PI / 2; wash.position.set(0, 0.007, D / 2 + 0.4); g.add(wash);
+  return g;
+}
+function pcMonitor(parent, x, y, z, rotY) {
+  const g = group(x, y, z, rotY, parent);
+  box(0.52, 0.31, 0.025, M.black, 0, 0.27, 0, g, { round: 0.008 });
+  box(0.04, 0.12, 0.04, M.dark, 0, 0.07, -0.02, g); box(0.2, 0.012, 0.16, M.dark, 0, 0.006, -0.02, g);
+  return g;
+}
+function officeChair(x, z, rotY) {
+  const g = group(x, 0, z, rotY);
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const leg = box(0.03, 0.025, 0.3, M.dark, Math.sin(a) * 0.14, 0.05, Math.cos(a) * 0.14, g); leg.rotation.y = a; }
+  cyl(0.022, 0.022, 0.32, M.metal, 0, 0.22, 0, g, 10);
+  box(0.48, 0.07, 0.46, M.fabric, 0, 0.405, -0.02, g, { round: 0.03 });
+  box(0.45, 0.5, 0.06, M.fabric, 0, 0.74, -0.25, g, { round: 0.03 });
+  return g;
+}
+function sideChair(x, z, rotY, fabric = M.fabric) {
+  const g = group(x, 0, z, rotY);
+  for (const sx of [-0.2, 0.2]) for (const sz of [-0.18, 0.18]) cyl(0.014, 0.014, 0.4, M.metal, sx, 0.2, sz, g, 8);
+  box(0.5, 0.06, 0.46, fabric, 0, 0.41, 0, g, { round: 0.025 });
+  box(0.48, 0.42, 0.05, fabric, 0, 0.7, -0.22, g, { round: 0.022 });
+  return g;
+}
+function plant(x, z, s = 1) {
+  const g = group(x, 0, z, rnd() * 6);
+  cyl(0.2 * s, 0.16 * s, 0.42 * s, M.pot, 0, 0.21 * s, 0, g, 18);
+  for (let i = 0; i < 9; i++) {
+    const l = new THREE.Mesh(new THREE.IcosahedronGeometry(0.17 * s * (0.7 + rnd() * 0.6), 0), i % 2 ? M.leaf : M.leaf2);
+    l.position.set((rnd() - 0.5) * 0.36 * s, (0.6 + rnd() * 0.75) * s, (rnd() - 0.5) * 0.36 * s);
+    l.scale.set(1, 1.6, 0.6); l.rotation.set(rnd(), rnd() * 6, rnd()); l.castShadow = true; g.add(l);
+  }
+  return g;
+}
+function pendant(x, y, z) {
+  cyl(0.004, 0.004, 2.7 - y, M.black, x, (2.7 + y) / 2, z, scene, 6, { cast: false });
+  cyl(0.06, 0.13, 0.18, M.dark, x, y, z, scene, 20, { cast: false });
+  cyl(0.12, 0.12, 0.01, M.lamp, x, y - 0.09, z, scene, 20, { cast: false });
+}
+function wallPanel(x, y, z, rotY) {   // BP gauge, otoscope and ophthalmoscope on a wall rail
+  const g = group(x, y, z, rotY);
+  box(0.9, 0.3, 0.03, M.hpl, 0, 0, 0, g);
+  const gauge = cyl(0.08, 0.08, 0.04, M.top, -0.3, 0.02, 0.04, g, 24); gauge.rotation.x = Math.PI / 2;
+  const rim = cyl(0.085, 0.085, 0.03, M.black, -0.3, 0.02, 0.025, g, 24); rim.rotation.x = Math.PI / 2;
+  for (const dx of [0.05, 0.2]) { box(0.07, 0.1, 0.06, M.dark, dx, 0.05, 0.04, g); cyl(0.016, 0.016, 0.22, M.black, dx, -0.13, 0.05, g, 8); }
+  box(0.1, 0.16, 0.08, M.top, 0.36, -0.02, 0.05, g);
+  return g;
+}
+function sanitizer(x, y, z, rotY) { const g = group(x, y, z, rotY); box(0.1, 0.2, 0.08, M.top, 0, 0, 0.04, g, { round: 0.02 }); box(0.04, 0.03, 0.03, M.dark, 0, -0.1, 0.07, g); }
+function windowOn(x, y, z, w, h, rotY) {
+  const g = group(x, y, z, rotY);
+  screenPlane(w, h, skyTex, g, 0, 0, 0.012).material = M.sky;
+  box(w + 0.1, 0.05, 0.08, M.dark, 0, h / 2, 0.03, g); box(w + 0.1, 0.05, 0.16, M.top, 0, -h / 2, 0.06, g);
+  for (const s of [-1, 0, 1]) box(0.045, h, 0.07, M.dark, s * w / 2, 0, 0.03, g);
+  return g;
+}
+
+// TRIAGE: fluted desk in front of the Deep Lake wall, nurse behind it, patient chair, vitals stand
+const triageDesk = counter(-8.5, -5.0, 2.0, 0);
+pcMonitor(triageDesk, 0.45, 0.755, -0.75, Math.PI + 0.25);
+officeChair(-8.5, -6.0, 0);
+sideChair(-8.5, -3.97, Math.PI);
+box(1.5, 0.05, 0.18, M.dark, -8.5, 2.67, -5.4, scene, { cast: false }); box(1.42, 0.012, 0.12, M.panelLight, -8.5, 2.64, -5.4, scene, { cast: false });
+wallPanel(-8.5, 1.55, -7.91, 0);
+sanitizer(-4.08, 1.25, -2.4, -Math.PI / 2);
+plant(-12.4, -7.4, 1.2); plant(-4.6, -7.4);
+for (const z of [-6.6, -5.9, -5.2]) sideChair(-12.55, z, Math.PI / 2);
+const triageVitals = group(-9.6, 0, -3.55, 0.7);
+for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const l = box(0.025, 0.02, 0.24, M.dark, Math.sin(a) * 0.1, 0.04, Math.cos(a) * 0.1, triageVitals); l.rotation.y = a; }
+cyl(0.015, 0.015, 1.05, M.metal, 0, 0.55, 0, triageVitals, 8);
+box(0.3, 0.24, 0.1, M.top, 0, 1.15, 0, triageVitals, { round: 0.02 });
+box(0.2, 0.1, 0.12, M.dove, 0, 0.92, 0.02, triageVitals, { round: 0.02 });
+const triageScreen = dynCanvas(320, 240);
+screenPlane(0.25, 0.188, triageScreen.t, triageVitals, 0, 1.155, 0.052);
+
+// LAB
+box(3.6, 0.9, 0.62, M.hpl, 11, 0.45, -7.6); box(3.7, 0.04, 0.68, M.top, 11, 0.92, -7.58, scene, { round: 0.01 });
+box(0.6, 0.5, 0.5, M.top, 9.9, 1.19, -7.6, scene, { round: 0.03 }); box(0.4, 0.14, 0.02, M.black, 9.9, 1.3, -7.34);
+cyl(0.18, 0.2, 0.26, M.top, 10.8, 1.07, -7.6, scene, 24);
+box(0.8, 0.45, 0.45, M.top, 11.8, 1.17, -7.6, scene, { round: 0.03 });
+box(0.75, 1.85, 0.65, M.hpl, 12.45, 0.925, -5.4, scene, { round: 0.02 }); box(0.02, 1.6, 0.5, M.frosted, 12.06, 0.95, -5.4, scene, { cast: false });
+plant(9.5, -2.1, 0.9);
+
+// WARD: beds, headwalls, monitors, curtains, crash cart
+function bed(x, angle) {
+  const g = group(x, 0, 0, 0);
+  const zH = -7.85, zF = -5.75, zHinge = -7.0;
+  for (const sx of [-0.34, 0.34]) for (const sz of [zH + 0.2, zF - 0.2]) {
+    cyl(0.012, 0.012, 0.14, M.metal, sx, 0.15, sz, g, 8);
+    const w = cyl(0.055, 0.055, 0.04, M.black, sx, 0.058, sz, g, 16); w.rotation.z = Math.PI / 2;
+  }
+  box(0.78, 0.07, 1.9, M.dark, 0, 0.23, (zH + zF) / 2, g);
+  box(0.2, 0.2, 0.5, M.dark, 0, 0.36, (zH + zF) / 2, g);
+  box(0.9, 0.05, 2.02, M.metal, 0, 0.47, (zH + zF) / 2, g);
+  box(0.86, 0.14, zF - zHinge - 0.03, M.sheet, 0, 0.55, (zHinge + zF) / 2 + 0.015, g, { round: 0.05 });
+  const hp = group(0, 0.48, zHinge, 0, g); hp.rotation.x = angle;
+  box(0.86, 0.14, 0.84, M.sheet, 0, 0.07, -0.43, hp, { round: 0.05 });
+  box(0.56, 0.12, 0.34, M.pillow, 0, 0.19, -0.64, hp, { round: 0.05 });
+  for (const s of [-1, 1]) box(0.035, 0.2, 0.62, M.rail, 0.465 * s, 0.24, -0.44, hp, { round: 0.014 });
+  box(0.035, 0.15, 0.72, M.rail, 0.465, 0.66, -6.3, g, { round: 0.014 });
+  box(0.96, 0.55, 0.045, M.board, 0, 0.75, zH - 0.03, g, { round: 0.02 });
+  box(0.96, 0.4, 0.05, M.board, 0, 0.66, zF + 0.02, g, { round: 0.02 });
+  // a thick hospital blanket from the waist down: long garments (abaya, kandura) stay hidden under it
+  const blanket = box(0.95, 0.4, 1.36, M.blanket, 0, 0.81, -6.42, g, { round: 0.17 });
+  box(0.95, 0.5, 0.5, M.blanket, 0, 0.06, 0.4, blanket, { round: 0.2 });
+  const folded = box(0.86, 0.07, 0.42, M.blanket, 0, 0.655, -5.98, g, { round: 0.03 });
+  folded.visible = false;
+  // headwall
+  box(1.3, 0.85, 0.035, M.oakPanel, 0, 1.45, -7.925, g);
+  box(1.1, 0.09, 0.05, M.top, 0, 1.3, -7.9, g);
+  cyl(0.022, 0.022, 0.09, M.green, -0.38, 1.22, -7.86, g, 12);
+  cyl(0.05, 0.05, 0.15, M.clear, 0.38, 1.18, -7.84, g, 16);
+  box(1.2, 0.025, 0.05, M.lamp, 0, 1.9, -7.9, g, { cast: false });
+  const call = box(0.06, 0.06, 0.03, new THREE.MeshStandardMaterial({ color: 0x4a4849, emissive: C.alert, emissiveIntensity: 0 }), 0.55, 1.82, -7.89, g, { cast: false });
+  return { g, blanket, folded, call };
+}
+function locker(x, z) { const g = group(x, 0, z, 0); box(0.44, 0.78, 0.44, M.hpl, 0, 0.39, 0, g, { round: 0.02 }); box(0.46, 0.03, 0.46, M.oakPanel, 0, 0.795, 0, g); box(0.38, 0.01, 0.01, M.dark, 0, 0.55, 0.225, g); cyl(0.045, 0.04, 0.2, M.clear, 0.08, 0.91, 0.05, g, 14); }
+function monitorArm(x, canvasObj) {
+  box(0.1, 0.14, 0.04, M.metal, x + 0.78, 1.72, -7.92);
+  const arm = box(0.035, 0.035, 0.32, M.metal, x + 0.78, 1.74, -7.74); arm.castShadow = false;
+  const g = group(x + 0.74, 1.76, -7.52, -0.42);
+  box(0.42, 0.32, 0.07, M.top, 0, 0, 0, g, { round: 0.02 });
+  screenPlane(0.36, 0.24, canvasObj.t, g, 0, 0.005, 0.036);
+  return g;
+}
+const beds = [bed(-1.5, 0.35), bed(2.0, 0.6), bed(5.5, 0.4)];
+for (const x of [-1.5, 2.0, 5.5]) contact(x, -6.8, 1.5, 2.8);
+contact(-8.5, -5.0, 2.6, 1.3); contact(2.25, 3.0, 5.0, 1.3); contact(-8.5, 5.4, 2.0, 1.2); contact(8.3, -6.4, 0.9, 1.2); contact(8.3, -4.6, 0.8, 1.0); contact(11, -7.6, 3.9, 1.0); contact(-12.35, 5.2, 1.0, 2.3);
+for (const [x, z] of [[-8.5, -3.97], [-8.5, -6.0], [-8.5, 4.28], [-8.5, 6.48], [1.35, 4.12], [3.15, 4.12]]) contact(x, z, 0.75, 0.75);
+const bed2 = beds[1];
+locker(-2.25, -7.6); locker(4.75, -7.6);
+const monCanvas = [dynCanvas(480, 320), dynCanvas(480, 320), dynCanvas(480, 320)];
+beds.forEach((b, i) => monitorArm([-1.5, 2.0, 5.5][i], monCanvas[i]));
+// curtains: ceiling tracks with bunched fabric
+function curtain(x) {
+  box(0.03, 0.03, 4.0, M.metal, x, 2.6, -5.9, scene, { cast: false });
+  const geo = new THREE.PlaneGeometry(0.9, 2.2, 28, 1);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 34) * 0.045);
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, M.curtain); m.rotation.y = Math.PI / 2; m.position.set(x, 1.48, -7.3); m.castShadow = true; scene.add(m);
+}
+curtain(0.25); curtain(3.75);
+// IV pole at bed 2 (bag + line appear when treatment starts)
+const iv = group(2.62, 0, -7.2, 0);
+for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const l = box(0.025, 0.02, 0.26, M.dark, Math.sin(a) * 0.11, 0.05, Math.cos(a) * 0.11, iv); l.rotation.y = a; }
+cyl(0.012, 0.012, 1.95, M.metal, 0, 1.0, 0, iv, 8);
+box(0.2, 0.012, 0.012, M.metal, 0, 1.96, 0, iv);
+box(0.15, 0.2, 0.12, M.top, 0, 1.15, 0.07, iv, { round: 0.02 });
+const pumpScreen = box(0.09, 0.05, 0.005, new THREE.MeshStandardMaterial({ color: 0x1b2a2e, emissive: 0x000000 }), 0, 1.19, 0.132, iv, { cast: false });
+const ivBag = box(0.12, 0.2, 0.04, M.clear, 0.08, 1.82, 0, iv, { round: 0.02, cast: false });
+const ivLine = cyl(0.004, 0.004, 1.05, M.clear, -0.15, 1.2, 0.25, iv, 6, { cast: false });
+ivLine.rotation.x = 0.5; ivLine.rotation.z = 0.35;
+// crash cart (Red Ochre) and supply cart
+{
+  const g = group(8.3, 0, -6.4, -Math.PI / 2);
+  box(0.72, 0.92, 0.52, M.ochre, 0, 0.56, 0, g, { round: 0.03 });
+  for (let i = 0; i < 5; i++) { box(0.68, 0.012, 0.01, M.dark, 0, 0.2 + i * 0.17, 0.262, g, { cast: false }); box(0.34, 0.025, 0.03, M.metal, 0, 0.27 + i * 0.17, 0.275, g); }
+  box(0.78, 0.04, 0.56, M.dark, 0, 1.04, 0, g, { round: 0.01 });
+  box(0.36, 0.22, 0.26, M.dark, -0.1, 1.17, 0, g, { round: 0.03 });
+  box(0.14, 0.09, 0.005, new THREE.MeshBasicMaterial({ color: 0x2c3b2c }), -0.12, 1.2, 0.131, g, { cast: false });
+  for (const sx of [-0.3, 0.3]) for (const sz of [-0.2, 0.2]) { const w = cyl(0.045, 0.045, 0.035, M.black, sx, 0.05, sz, g, 14); w.rotation.z = Math.PI / 2; }
+  const s = group(8.3, 0, -4.6, -Math.PI / 2);
+  box(0.6, 1.05, 0.48, M.dove, 0, 0.6, 0, s, { round: 0.03 });
+  for (let i = 0; i < 6; i++) box(0.56, 0.01, 0.01, M.dark, 0, 0.18 + i * 0.16, 0.242, s, { cast: false });
+  for (const sx of [-0.24, 0.24]) for (const sz of [-0.18, 0.18]) { const w = cyl(0.04, 0.04, 0.03, M.black, sx, 0.045, sz, s, 14); w.rotation.z = Math.PI / 2; }
+}
+box(0.18, 0.24, 0.12, M.ochre, 8.92, 1.25, -2.4, scene, { round: 0.02 });   // sharps bin
+sanitizer(3.15, 1.25, -1.58, Math.PI);
+// ward clock (face shows the simulation time)
+const clockCanvas = dynCanvas(256, 256);
+{
+  const rim = cyl(0.17, 0.17, 0.04, M.dark, 3.75, 2.22, -7.92, scene, 32, { cast: false }); rim.rotation.x = Math.PI / 2;
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.155, 40), new THREE.MeshBasicMaterial({ map: clockCanvas.t }));
+  face.position.set(3.75, 2.22, -7.895); scene.add(face);
+}
+let lastClockMin = -1;
+function drawClock(minOfDay) {
+  if (minOfDay === lastClockMin) return; lastClockMin = minOfDay;
+  const g = clockCanvas.g; g.fillStyle = '#F8F5EF'; g.fillRect(0, 0, 256, 256);
+  g.translate(128, 128); g.strokeStyle = '#3F3D3E';
+  for (let i = 0; i < 12; i++) { g.save(); g.rotate(i * Math.PI / 6); g.lineWidth = i % 3 ? 4 : 8; g.beginPath(); g.moveTo(0, -112); g.lineTo(0, -92); g.stroke(); g.restore(); }
+  const hA = ((minOfDay / 60) % 12) / 12 * Math.PI * 2, mA = (minOfDay % 60) / 60 * Math.PI * 2;
+  g.lineCap = 'round'; g.lineWidth = 10; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.sin(hA) * 58, -Math.cos(hA) * 58); g.stroke();
+  g.lineWidth = 6; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.sin(mA) * 88, -Math.cos(mA) * 88); g.stroke();
+  g.fillStyle = '#BF8945'; g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill();
+  g.setTransform(1, 0, 0, 1, 0, 0); clockCanvas.t.needsUpdate = true;
+}
+
+// CLINIC
+{
+  const d = group(-8.5, 0, 5.4, 0);
+  box(1.6, 0.04, 0.75, M.oakPanel, 0, 0.74, 0, d, { round: 0.01 });
+  for (const sx of [-0.75, 0.75]) box(0.04, 0.72, 0.7, M.dark, sx, 0.36, 0, d);
+  pcMonitor(d, -0.35, 0.76, 0.12, Math.PI - 0.3);
+  officeChair(-8.5, 6.48, Math.PI);
+  sideChair(-8.5, 4.28, 0);
+  const couch = group(-12.35, 0, 5.2, 0);
+  box(0.62, 0.55, 1.85, M.hpl, 0, 0.3, 0, couch, { round: 0.03 });
+  box(0.66, 0.1, 1.9, M.fabric, 0, 0.62, 0, couch, { round: 0.04 });
+  box(0.5, 0.012, 1.7, M.paper, 0, 0.675, 0, couch, { cast: false });
+  wallPanel(-12.93, 1.55, 6.8, Math.PI / 2);
+  box(0.9, 0.85, 0.55, M.hpl, -12.6, 0.43, 7.35, scene, { round: 0.02 }); box(0.95, 0.04, 0.6, M.top, -12.6, 0.875, 7.35);
+  windowOn(-9.0, 1.55, 7.94, 2.2, 1.3, Math.PI);
+  plant(-4.6, 7.4, 1.1);
+  sanitizer(-4.08, 1.25, 2.4, -Math.PI / 2);
+}
+
+// WAITING AREA + NURSE STATION + ICU ZONE
+for (const z of [3.2, 4.4]) for (let i = 0; i < 4; i++) sideChair(-3.4 + i * 0.58, z, Math.PI);
+plant(-3.4, 7.3); plant(-0.9, 7.3, 0.9);
+const stationDesk = counter(2.25, 3.0, 4.5, Math.PI);
+pcMonitor(stationDesk, -0.9, 0.755, -0.72, 0.15); pcMonitor(stationDesk, 0.9, 0.755, -0.72, -0.15);
+officeChair(1.35, 4.12, Math.PI); officeChair(3.15, 4.12, Math.PI);
+const board = dynCanvas(1024, 576);
+const boardG = group(2.25, 1.78, 5.13, Math.PI);
+box(1.86, 1.06, 0.05, M.black, 0, 0, 0.0, boardG, { round: 0.015 });
+screenPlane(1.78, 1.0, board.t, boardG, 0, 0, 0.027);
+for (const x of [8.0, 9.6]) sideChair(x, 7.4, Math.PI);
+plant(11.9, 7.2, 1.1); plant(6.7, 7.3);
+// outside
+for (const z of [-2.4, 2.7]) { plant(-14.2, z, 1.2); }
+
+/* ---------- people ---------- */
+const SKIN = [0xC68C6A, 0x8D5A3B, 0xE0B18F, 0xB07A55, 0xD9A17C, 0xA86F4C, 0x6E4630];
+const HIP = 0.9, SIT_Y = -0.38;
+function capsule(r, len, m, x, y, z, parent) {
+  const c = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 12), m);
+  c.position.set(x, y, z); c.castShadow = true; parent.add(c); return c;
+}
+function person(o) {
+  const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner); scene.add(g);
+  const mm = (c, extra) => mat(c, Object.assign({ roughness: 0.9 }, extra));
+  const mTop = mm(o.top), mBot = mm(o.bottom ?? o.top), mSkin = mm(o.skin, { roughness: 0.6 }), mShoe = mm(o.shoes ?? 0x2f2e2f, { roughness: 0.5 });
+  const mSleeve = o.coat ? mm(o.coat) : mTop;
+  const legs = [], arms = [], shoes = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(0.09 * s, HIP, 0); inner.add(hip);
+    capsule(0.07, 0.43, mBot, 0, -0.215, 0, hip);
+    const knee = new THREE.Group(); knee.position.y = -0.43; hip.add(knee);
+    capsule(0.056, 0.41, mBot, 0, -0.205, 0, knee);
+    shoes.push(box(0.1, 0.07, 0.24, mShoe, 0, -0.432, 0.045, knee, { round: 0.03 }));
+    legs.push({ hip, knee });
+  }
+  const pelvis = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.1, 4, 12), mBot);
+  pelvis.rotation.z = Math.PI / 2; pelvis.scale.set(1, 1, 0.85); pelvis.position.y = HIP + 0.03; pelvis.castShadow = true; inner.add(pelvis);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.36, 6, 16), o.coat ? mSleeve : mTop);
+  torso.scale.set(1.12, 1, 0.72); torso.position.y = HIP + 0.3; torso.castShadow = true; inner.add(torso);
+  if (o.coat) {   // coat over a scrub top: show the scrub V at the neck
+    const v = new THREE.Mesh(new THREE.CircleGeometry(0.07, 3), mTop); v.rotation.z = Math.PI; v.position.set(0, HIP + 0.55, 0.112); inner.add(v);
+    const sk = new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.22, o.coatLen || 0.42, 24, 1, true), mm(o.coat, { side: THREE.DoubleSide }));
+    sk.position.y = HIP - (o.coatLen || 0.42) / 2 + 0.07; sk.castShadow = true; inner.add(sk);
+  }
+  cyl(0.045, 0.05, 0.1, mSkin, 0, HIP + 0.66, 0, inner, 12);
+  const headY = HIP + 0.79;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.105, 28, 20), mSkin);
+  head.scale.set(0.92, 1.08, 1); head.position.y = headY; head.castShadow = true; inner.add(head);
+  sphere(0.017, mSkin, 0, headY - 0.012, 0.1, inner, { seg: 10, seg2: 8 });
+  for (const s of [-1, 1]) { sphere(0.011, M.black, 0.036 * s, headY + 0.012, 0.087, inner, { seg: 10, seg2: 8, cast: false }); box(0.034, 0.007, 0.01, mm(o.hair ?? o.cap ?? 0x2a2523), 0.037 * s, headY + 0.04, 0.089, inner, { cast: false }); }
+  for (const s of [-1, 1]) sphere(0.022, mSkin, 0.097 * s, headY - 0.005, -0.005, inner, { seg: 10, seg2: 8 });
+  if (o.scarf) {
+    const m = mm(o.scarf, { side: THREE.DoubleSide });
+    const sc = new THREE.Mesh(new THREE.SphereGeometry(0.122, 28, 18, Math.PI * 0.78, Math.PI * 1.44, 0, Math.PI * 0.8), m);
+    sc.scale.set(0.95, 1.1, 1.05); sc.position.set(0, headY + 0.005, -0.006); sc.castShadow = true; inner.add(sc);
+    const drape = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.17, 0.15, 24, 1, true), m);
+    drape.position.y = HIP + 0.62; inner.add(drape);
+  } else if (o.cap != null) {
+    const cp = new THREE.Mesh(new THREE.SphereGeometry(0.113, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.46), mm(o.cap));
+    cp.scale.set(0.95, 1.1, 1.04); cp.position.set(0, headY + 0.008, -0.004); inner.add(cp);
+  } else if (o.hair != null) {
+    const hr = new THREE.Mesh(new THREE.SphereGeometry(0.111, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.56), mm(o.hair));
+    hr.scale.set(0.95, 1.1, 1.04); hr.position.set(0, headY + 0.012, -0.014); inner.add(hr);
+    if (o.bun) sphere(0.05, mm(o.hair), 0, headY + 0.03, -0.12, inner, { seg: 12, seg2: 10 });
+  }
+  for (const s of [-1, 1]) {
+    const sh = new THREE.Group(); sh.position.set(0.205 * s, HIP + 0.5, 0); inner.add(sh);
+    capsule(0.048, 0.27, mSleeve, 0, -0.135, 0, sh);
+    const el = new THREE.Group(); el.position.y = -0.28; sh.add(el);
+    capsule(0.042, 0.23, o.shortSleeve ? mSkin : mSleeve, 0, -0.12, 0, el);
+    const hand = sphere(0.046, mSkin, 0, -0.27, 0.005, el, { seg: 12, seg2: 10 }); hand.scale.set(0.8, 1.15, 0.55);
+    sh.rotation.z = 0.06 * s;
+    arms.push({ sh, el, s });
+  }
+  if (o.steth) {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.009, 8, 32, Math.PI * 1.15), mm(0x2a2a2b));
+    t.rotation.set(Math.PI / 2 + 0.25, 0, Math.PI * 1.07); t.position.set(0, HIP + 0.58, 0.02); inner.add(t);
+    cyl(0.022, 0.022, 0.012, M.metal, 0.06, HIP + 0.38, 0.115, inner, 12).rotation.x = Math.PI / 2;
+  }
+  if (o.badge) box(0.05, 0.07, 0.008, M.top, -0.09, HIP + 0.42, 0.112, inner, { cast: false });
+  const el = document.createElement('div'); el.className = 'bubble hidden';
+  const bubble = new CSS2DObject(el); bubble.position.set(0, 2.02, 0); g.add(bubble);
+  return { g, inner, legs, arms, shoes, bubble, bubbleEl: el, bubbleUntil: 0, node: null, tween: null, pose: 'stand', recline: 0, hidden: false, phase: rnd() * 6, yaw: 0, name: o.name };
+}
+const people = {
+  nurse1: person({ name: 'Triage nurse', top: C.lake, skin: SKIN[1], cap: 0x2E6A80, shortSleeve: true, badge: true }),
+  nurse2: person({ name: 'Ward nurse', top: C.lake, skin: SKIN[2], hair: 0x2B1E16, bun: true, shortSleeve: true, badge: true }),
+  doctor: person({ name: 'ER doctor', top: 0x9DB4BC, bottom: C.raku, coat: 0xF4F1EB, coatLen: 0.5, skin: SKIN[3], hair: 0x1C1917, steth: true, badge: true }),
+  anaes: person({ name: 'Anaesthetist', top: C.dove, skin: SKIN[6], cap: 0x6C6770, shortSleeve: true, badge: true })
+};
+const PATIENT_LOOK = {
+  er: { name: 'Patient', top: C.ochre, bottom: 0x3B4650, skin: SKIN[0], hair: 0x1D1A18 },
+  checkup: { name: 'Patient', top: 0x6F6874, bottom: 0x5E5862, coat: 0x6F6874, coatLen: 0.8, skin: SKIN[4], scarf: 0x4E4C4D },
+  healthy: { name: 'Patient', top: 0xC9B79C, bottom: 0x46566A, skin: SKIN[2], hair: 0x3A2A1F, bun: true },
+  try: { name: 'Patient', top: 0x9DB6BE, skin: SKIN[5], hair: 0x2A2522 }
+};
+const patients = {};
+for (const [k, look] of Object.entries(PATIENT_LOOK)) { patients[k] = person(look); patients[k].g.visible = false; }
+people.patient = patients.er;
+// two other patients already in beds 1 and 3
+const bystanders = [person({ top: 0x9DB6BE, skin: SKIN[6], hair: 0x9a9590 }), person({ top: 0x9DB6BE, skin: SKIN[3], hair: 0x231d1a })];
+// the Badri patch: disposable microneedle patch with a reusable Bluetooth reader on top
+const patch = new THREE.Group();
+box(0.012, 0.085, 0.07, M.sheet, 0, 0, 0, patch, { round: 0.004, cast: false });
+const reader = cyl(0.028, 0.028, 0.016, M.rail, -0.01, 0, 0, patch, 24, { cast: false }); reader.rotation.z = Math.PI / 2;
+const patchLed = sphere(0.0075, new THREE.MeshBasicMaterial({ color: 0x8FD3E3, toneMapped: false }), -0.019, 0.012, 0, patch, { seg: 8, seg2: 6, cast: false });
+patch.position.set(-0.052, -0.11, 0.0); patch.visible = false;
+function attachPatch(P) {
+  if (P.av) { placePatchOnAvatar(P); return; }
+  P.arms[0].sh.add(patch); patch.position.set(-0.052, -0.11, 0); patch.quaternion.identity(); patch.scale.setScalar(1);
+}
+attachPatch(people.patient);
+let patchPulse = 0;
+
+/* ---------- places and walking ---------- */
+const V = (x, z) => new THREE.Vector3(x, 0, z);
+const N = {
+  entrance: { p: V(-15.5, 0.15), door: V(-11.8, 0.15) },
+  exit: { p: V(-15.5, 0.15), door: V(-11.8, 0.15) },
+  triageChair: { p: V(-8.5, -4.05), door: V(-8.5, 0.15) },
+  triageNurse: { p: V(-8.5, -5.95), door: V(-8.5, 0.15), via: [V(-9.2, -2.0), V(-10.1, -3.4), V(-10.1, -5.95)] },
+  clinicChair: { p: V(-8.5, 4.35), door: V(-8.5, 0.15) },
+  doctorHome: { p: V(-8.5, 6.4), door: V(-8.5, 0.15), via: [V(-9.2, 2.3), V(-10.1, 3.6), V(-10.1, 6.4)] },
+  doctorStation: { p: V(3.15, 4.02), door: V(5.2, 0.15), via: [V(5.2, 1.4), V(5.2, 4.02)] },
+  station: { p: V(1.35, 4.02), door: V(5.2, 0.15), via: [V(5.2, 1.4), V(5.2, 4.02)] },
+  bed: { p: V(2.0, -4.6), door: V(2.0, 0.15), via: [V(2.0, -2.0)] },
+  bedNurse: { p: V(1.2, -6.45), door: V(2.0, 0.15), via: [V(2.0, -2.0), V(1.05, -5.0)] },
+  bedDoctor: { p: V(2.84, -6.45), door: V(2.0, 0.15), via: [V(2.0, -2.0), V(2.95, -5.0)] },
+  bedAnaes: { p: V(1.24, -7.38), door: V(2.0, 0.15), via: [V(2.0, -2.0), V(0.95, -5.0), V(0.92, -7.0)] },
+  otherBed: { p: V(4.72, -6.45), door: V(2.0, 0.15), via: [V(2.0, -2.0), V(4.62, -4.6)] },
+  icuDoor: { p: V(12.3, 4.5), door: V(11.4, 0.15), via: [V(11.4, 4.5)] }
+};
+const FACE = { triageNurse: 0, triageChair: Math.PI, clinicChair: 0, doctorHome: Math.PI, station: Math.PI, doctorStation: Math.PI, bedNurse: Math.PI / 2, bedDoctor: -Math.PI / 2, otherBed: Math.PI / 2, bedAnaes: Math.PI / 2, icuDoor: -Math.PI / 2, bed: Math.PI, entrance: Math.PI / 2 };
+const SIT = new Set(['triageChair', 'triageNurse', 'clinicChair', 'doctorHome', 'station', 'doctorStation']);
+const faceFor = (n) => FACE[n] ?? 0;
+function route(fromNode, fromPos, toName) {
+  const a = fromNode ? N[fromNode] : null, b = N[toName];
+  const pts = [fromPos.clone()];
+  const sameDoor = a && a.door.distanceTo(b.door) < 0.01;
+  if (a && fromNode !== toName) { if (a.via) for (const p of [...a.via].reverse()) pts.push(p.clone()); if (!sameDoor) pts.push(a.door.clone()); }
+  if (!sameDoor) pts.push(b.door.clone());
+  if (b.via) for (const p of b.via) pts.push(p.clone());
+  pts.push(b.p.clone());
+  const out = [pts[0]];
+  for (const p of pts.slice(1)) if (p.distanceTo(out[out.length - 1]) > 0.05) out.push(p);
+  return out;
+}
+function reclineAt(P, x, a) {
+  P.pose = 'recline'; P.recline = a; P.tween = null;
+  P.g.visible = true; P.hidden = false;
+  P.g.position.set(x, 0.73, -7.0); P.g.rotation.y = 0; P.yaw = 0;
+  applyPose(P, 0);
+}
+function lieInBed(P) { reclineAt(P, 2.0, 0.6); P.node = 'bed'; bedOccupied(true); }
+function bedOccupied(on) { bed2.blanket.visible = on; bed2.folded.visible = !on; }
+function place(who, node) {
+  const P = people[who];
+  P.tween = null; P.node = node; P.hidden = false; P.g.visible = true;
+  P.g.position.copy(N[node].p); P.g.rotation.y = P.yaw = faceFor(node);
+  P.pose = SIT.has(node) ? 'sit' : 'stand';
+  applyPose(P, 0);
+}
+function finishTween(P) {
+  const tw = P.tween; if (!tw) return;
+  P.tween = null; P.node = tw.to;
+  P.g.position.copy(tw.pts[tw.pts.length - 1]);
+  if (tw.then === 'lie') lieInBed(P);
+  else if (tw.then === 'hide') { P.hidden = true; P.g.visible = false; }
+  else { P.g.rotation.y = P.yaw = faceFor(tw.to); P.pose = SIT.has(tw.to) ? 'sit' : 'stand'; }
+  applyPose(P, 0);
+}
+function walk(who, to, then, delay = 0) {
+  const P = people[who];
+  finishTween(P);
+  if (P.pose === 'recline') { P.g.position.copy(N.bed.p); P.node = 'bed'; if (who === 'patient') bedOccupied(false); }
+  if (!delay) P.pose = 'stand';
+  const pts = route(P.node, P.g.position.clone().setY(0), to);
+  const lens = [0]; for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1] + pts[i].distanceTo(pts[i - 1]));
+  P.tween = { pts, lens, total: Math.max(0.01, lens[lens.length - 1]), d: 0, then, to, delay };
+  P.g.visible = true; P.hidden = false; P.g.position.y = 0;
+}
+function stepWalker(P, dt, speed) {
+  const tw = P.tween; if (!tw) return;
+  if (tw.delay > 0) { tw.delay -= dt; return; }
+  P.pose = 'stand';
+  P.walkSpeed = speed;
+  tw.d = Math.min(tw.total, tw.d + dt * speed);
+  let i = 1; while (i < tw.lens.length - 1 && tw.lens[i] < tw.d) i++;
+  const a = tw.pts[i - 1], b = tw.pts[i];
+  const k = Math.min(1, Math.max(0, (tw.d - tw.lens[i - 1]) / Math.max(1e-6, tw.lens[i] - tw.lens[i - 1])));
+  P.g.position.lerpVectors(a, b, k);
+  if (b.distanceTo(a) > 0.01) P.yaw = Math.atan2(b.x - a.x, b.z - a.z);
+  let dy = P.yaw - P.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  P.g.rotation.y += dy * Math.min(1, dt * 10);
+  if (tw.d >= tw.total) finishTween(P);
+}
+const tmpV = new THREE.Vector3(), tmpE = new THREE.Euler();
+function applyPose(P, dt) {
+  if (P.av) {
+    if (!P.g.visible && dt) return;
+    avatarPose(P, dt);
+    if (P.pose === 'recline') P.bubble.position.set(0, 1.0, -0.55); else P.bubble.position.set(0, P.pose === 'sit' ? 1.55 : 2.02, 0);
+    return;
+  }
+  const L = P.legs, A = P.arms;
+  let hip = [0, 0], knee = [0, 0], sh = [0, 0], el = [-0.12, -0.12], y = 0, rx = 0;
+  if (P.pose === 'sit') { hip = [-1.52, -1.52]; knee = [1.48, 1.48]; sh = [-0.3, -0.3]; el = [-1.0, -1.0]; y = SIT_Y; }
+  else if (P.pose === 'recline') { const a = P.recline; rx = -(Math.PI / 2 - a); hip = [-a, -a]; knee = [0.04, 0.04]; sh = [0.1, 0.1]; el = [-0.3, -0.3]; }
+  else if (P.tween) {
+    P.phase += dt * 8.5;
+    const s = Math.sin(P.phase), c = Math.cos(P.phase);
+    hip = [0.42 * s, -0.42 * s]; knee = [0.8 * Math.max(0, -c), 0.8 * Math.max(0, c)];
+    sh = [-0.32 * s, 0.32 * s]; el = [-0.28, -0.28]; y = 0.022 * Math.abs(c);
+  }
+  for (let i = 0; i < 2; i++) { L[i].hip.rotation.x = hip[i]; L[i].knee.rotation.x = knee[i]; A[i].sh.rotation.x = sh[i]; A[i].el.rotation.x = el[i]; }
+  for (const s of P.shoes) s.visible = P.pose !== 'recline';
+  P.inner.rotation.x = rx;
+  if (P.pose === 'recline') {
+    tmpV.set(0, HIP, 0).applyEuler(tmpE.set(rx, 0, 0));
+    P.inner.position.set(0, -tmpV.y, -tmpV.z);
+    P.bubble.position.set(0, 1.0, -0.55);
+  } else {
+    P.inner.position.set(0, y, 0);
+    P.bubble.position.set(0, P.pose === 'sit' ? 1.62 : 2.02, 0);
+  }
+}
+bystanders.forEach((P, i) => reclineAt(P, [-1.5, 5.5][i], [0.35, 0.4][i]));
+function bubble(who, text, badri) {
+  const P = people[who]; if (!P) return;
+  P.bubbleEl.innerHTML = '';
+  const b = document.createElement('b'); b.textContent = badri ? 'Badri' : P.name;
+  P.bubbleEl.append(b, document.createTextNode(text));
+  P.bubbleEl.classList.toggle('badri', !!badri);
+  P.bubbleEl.classList.remove('hidden');
+  P.bubbleUntil = performance.now() + 4200;
+}
+
+/* ---------- screens: bedside monitors, triage vitals, ward board ---------- */
+const LEVEL_HEX = { arriving: '#1C5469', routine: '#1C5469', watch: '#BF8945', alert: '#A8432F', respond: '#1C5469', confirmed: '#A8432F' };
+function ecg(x, beat) { const p = ((x / beat) % 1 + 1) % 1; if (p < 0.08) return Math.sin(p / 0.08 * Math.PI) * 0.12; if (p < 0.12) return 0; if (p < 0.135) return -0.18; if (p < 0.16) return 1; if (p < 0.185) return -0.3; if (p < 0.3) return 0; if (p < 0.42) return Math.sin((p - 0.3) / 0.12 * Math.PI) * 0.25; return 0; }
+function drawMonitor(cv, v, o) {
+  const g = cv.g, w = cv.c.width, h = cv.c.height;
+  g.fillStyle = '#0A1215'; g.fillRect(0, 0, w, h);
+  const alarm = o.alarm && Math.floor(performance.now() / 450) % 2 === 0;
+  g.fillStyle = alarm ? '#A8432F' : '#13252B'; g.fillRect(0, 0, w, 34);
+  g.fillStyle = '#EDE6DB'; g.font = '600 18px Inter, sans-serif'; g.textBaseline = 'middle';
+  g.fillText(o.title, 12, 18);
+  g.textAlign = 'right'; g.fillText(o.right || '', w - 12, 18); g.textAlign = 'left';
+  const t = performance.now() / 1000, hr = v.hr || 75, wW = w * 0.6;
+  const traces = [['#7BD389', 62, (x) => ecg(x / 90 + t * hr / 60, 1)], ['#62C3DA', 140, (x) => Math.max(0, Math.sin(((x / 90 + t * hr / 60) % 1) * Math.PI)) ** 1.6], ['#E3C46A', 214, (x) => Math.sin((x / 160 + t * (v.rr || 16) / 60) * Math.PI * 2) * 0.5 + 0.5]];
+  for (const [col, y0, f] of traces) {
+    g.strokeStyle = col; g.lineWidth = 2.2; g.beginPath();
+    for (let x = 8; x < wW; x += 2) { const yy = y0 + 22 - f(x) * 40; x === 8 ? g.moveTo(x, yy) : g.lineTo(x, yy); }
+    g.stroke();
+  }
+  const num = (label, val, col, x, y, size = 46, unit = '') => {
+    g.fillStyle = col; g.font = '600 13px Inter, sans-serif'; g.fillText(label, x, y);
+    g.font = `600 ${size}px "Inter Tight", Inter, sans-serif`; g.fillText(val, x, y + size * 0.62 + 8);
+    if (unit) { g.font = '500 12px Inter, sans-serif'; g.fillText(unit, x + g.measureText(val).width * 0 + 2, y + size + 16); }
+  };
+  const f0 = (x) => (x == null ? '--' : String(Math.round(x)));
+  num('HR', f0(v.hr), '#7BD389', wW + 10, 50);
+  num('SpO₂', f0(v.spo2), '#62C3DA', wW + 10, 122, 38);
+  num('RR', f0(v.rr), '#E3C46A', wW + 100, 122, 38);
+  g.fillStyle = '#EDE6DB'; g.font = '600 13px Inter, sans-serif'; g.fillText('NIBP', 10, 262);
+  g.font = '600 30px "Inter Tight", Inter, sans-serif'; g.fillText(v.sbp != null ? `${Math.round(v.sbp)}/${Math.round(v.dbp)}` : '--/--', 10, 294);
+  g.font = '600 13px Inter, sans-serif'; g.fillText('TEMP', 160, 262);
+  g.font = '600 30px "Inter Tight", Inter, sans-serif'; g.fillText(v.temp != null ? v.temp.toFixed(1) : '--', 160, 294);
+  if (o.lactate !== false) {
+    g.fillStyle = '#D9A35F'; g.font = '600 13px Inter, sans-serif'; g.fillText('LACTATE · BADRI', wW + 10, 200);
+    g.font = '600 40px "Inter Tight", Inter, sans-serif'; g.fillText(v.lac != null ? v.lac.toFixed(1) : '--', wW + 10, 240);
+    g.font = '500 12px Inter, sans-serif'; g.fillText('mmol/L', wW + 10, 270);
+  }
+  cv.t.needsUpdate = true;
+}
+const NORMAL_A = { hr: 78, spo2: 97, rr: 15, sbp: 124, dbp: 76, temp: 36.8, lac: null };
+const NORMAL_B = { hr: 86, spo2: 96, rr: 17, sbp: 131, dbp: 80, temp: 37.1, lac: null };
+function drawBoard(level, sim) {
+  const g = board.g, w = 1024, h = 576;
+  const alarm = (level === 'alert') && Math.floor(performance.now() / 500) % 2 === 0;
+  g.fillStyle = level === 'alert' ? (alarm ? '#A8432F' : '#7E3426') : '#1C5469'; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(237,230,219,0.7)'; g.font = '600 26px Inter, sans-serif'; g.textBaseline = 'alphabetic';
+  g.fillText('BADRI  ·  WARD BOARD', 48, 64);
+  g.textAlign = 'right'; g.fillText(sim ? sim.clock() : '', w - 48, 64); g.textAlign = 'left';
+  const rows = [['Bed 1', 'No patch · routine', '#EDE6DB'], ['Bed 2', '', '#EDE6DB'], ['Bed 3', 'No patch · routine', '#EDE6DB']];
+  const s2 = { arriving: 'Empty', routine: 'Empty', watch: 'Patch on · watching', alert: 'SEPSIS ALERT', respond: 'First hour running', confirmed: 'Sepsis · treated early' }[level] || '';
+  rows[1][1] = s2; if (level === 'watch') rows[1][2] = '#E8B77A'; if (level === 'alert') rows[1][2] = '#FFFFFF';
+  rows.forEach(([bedName, text, col], i) => {
+    const y = 150 + i * 120;
+    g.fillStyle = 'rgba(237,230,219,0.12)'; g.fillRect(48, y - 62, w - 96, 96);
+    g.fillStyle = col; g.font = '600 44px "Inter Tight", Inter, sans-serif'; g.fillText(bedName, 76, y);
+    g.font = i === 1 ? '600 44px "Inter Tight", Inter, sans-serif' : '500 34px Inter, sans-serif'; g.fillText(text, 290, y);
+  });
+  g.fillStyle = 'rgba(237,230,219,0.7)'; g.font = '500 24px Inter, sans-serif';
+  g.fillText(sim && sim.patch ? `Patch reads every 5 min · re-score every ${sim.interval} min` : 'Triage scores every patient on arrival', 48, h - 40);
+  board.t.needsUpdate = true;
+}
+
+/* ---------- labels (overview only) ---------- */
+const zoneLabels = [];
+function label(text, x, z) {
+  const el = document.createElement('div'); el.className = 'zone'; el.textContent = text;
+  const o = new CSS2DObject(el); o.position.set(x, 0.05, z); scene.add(o); zoneLabels.push(o); return o;
+}
+label('Entrance', -14.6, 1.5); label('Triage', -8.5, -1.0); label('Ward · beds 1–3', 2.0, -1.0); label('Lab', 11, -1.0);
+label('Clinic', -8.5, 2.3); label('Waiting', -2.2, 2.3); label('Nurse station', 2.25, 1.95); const icuLabel = label('ICU', 11.6, 3.2);
+
+/* ---------- scene reactions to the engine's animation commands ---------- */
+let level = 'arriving', alarmOn = false, treated = false, patchJustOn = false;
+function setLevel(l) {
+  level = l;
+  const col = new THREE.Color(LEVEL_HEX[l] || '#1C5469');
+  patchLed.material.color.copy(l === 'alert' || l === 'confirmed' ? new THREE.Color('#E0745E') : new THREE.Color('#8FD3E3'));
+  bed2.call.material.emissiveIntensity = 0;
+}
+function resetScene(opts, caseId) {
+  for (const [k, P] of Object.entries(patients)) { P.g.visible = false; P.hidden = true; P.tween = null; }
+  people.patient = patients[caseId] || patients.er;
+  attachPatch(people.patient);
+  place('patient', 'entrance');
+  place('nurse1', 'triageNurse');
+  place('nurse2', opts.nurseBusy ? 'otherBed' : 'station');
+  place('doctor', caseId === 'healthy' ? 'doctorHome' : 'doctorStation');
+  place('anaes', 'icuDoor'); people.anaes.g.visible = false; people.anaes.hidden = true;
+  for (const P of Object.values(people)) { P.bubbleEl.classList.add('hidden'); P.bubbleUntil = 0; }
+  patch.visible = false; treated = false; ivBag.visible = false; ivLine.visible = false;
+  pumpScreen.material.emissive.setHex(0x000000);
+  alarmOn = false; icuFlash = false; drawIcuSign(false); icuLabel.element.classList.remove('flash');
+  bedOccupied(false);
+  if (opts.inBed) lieInBed(people.patient);
+  setLevel('arriving');
+}
+function applyAnim(a, caseId) {
+  switch (a.cmd) {
+    case 'reset': resetScene(a, caseId); break;
+    case 'walk': walk(a.who, a.to, a.then, a.who === 'patient' && patchJustOn ? 3.2 : 0); break;
+    case 'say': bubble(a.who, a.text); break;
+    case 'patch': patch.visible = a.on; patchPulse = 1; patchJustOn = a.on; break;
+    case 'status': setLevel(a.level); break;
+    case 'alarm': alarmOn = a.on; if (a.on) bubble('patient', 'Alert sent to the ward nurse', true); break;
+    case 'page':
+      if (a.role === 'doctor') bubble('doctor', 'Paged by Badri: bed 2, sepsis alert');
+      else { icuFlash = true; icuLabel.element.classList.add('flash'); }
+      break;
+    case 'appear': { place(a.who, a.at); break; }
+    case 'sample': patchPulse = 1; break;
+    case 'treat': treated = true; ivBag.visible = true; ivLine.visible = true; pumpScreen.material.emissive.setHex(0x3f9a5a); break;
+  }
+}
+
+/* ---------- camera shots ---------- */
+const P3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const SHOTS = {
+  overview: { pos: P3(0, 21, 16.5), tgt: P3(0, 0, -0.3), wide: true },
+  arrive: { pos: P3(-5.6, 1.7, 1.25), tgt: P3(-12.2, 1.05, -0.4) },
+  triage: { pos: P3(-8.12, 1.5, -6.95), tgt: P3(-8.55, 1.2, -4.05), zoom: 1.35 },
+  patch: { pos: P3(-6.8, 1.32, -4.8), tgt: P3(-8.36, 1.02, -4.0), zoom: 1.2 },
+  bay: { pos: P3(1.05, 1.55, -5.15), tgt: P3(2.0, 1.02, -7.55), zoom: 1.1 },
+  bayWide: { pos: P3(0.6, 1.72, -3.7), tgt: P3(2.9, 1.0, -6.9) },
+  station: { pos: P3(2.25, 1.82, 0.55), tgt: P3(2.25, 1.2, 4.2) },
+  bundle: { pos: P3(3.55, 1.62, -4.85), tgt: P3(1.85, 1.05, -7.2) },
+  treated: { pos: P3(0.95, 1.5, -5.55), tgt: P3(2.35, 1.15, -7.55) },
+  confirmed: { pos: P3(0.45, 1.85, -4.3), tgt: P3(2.2, 1.0, -7.1) },
+  clinic: { pos: P3(-7.45, 1.45, 6.15), tgt: P3(-8.5, 1.15, 4.35), zoom: 1.25 }
+};
+let camAnim = null, currentShot = null, userCam = false;
+controls.addEventListener('start', () => { userCam = true; camAnim = null; });
+function shotPose(name) {
+  const S = SHOTS[name] || SHOTS.overview;
+  const pos = S.pos.clone(), tgt = S.tgt.clone();
+  if (S.wide) { const k = Math.max(1, 1.55 / camera.aspect); pos.sub(tgt).multiplyScalar(k).add(tgt); }
+  return { pos, tgt, zoom: S.zoom || 1 };
+}
+function flyTo(name, instant) {
+  currentShot = name;
+  const to = shotPose(name);
+  if (instant || reduceMotion) { camera.position.copy(to.pos); controls.target.copy(to.tgt); camera.zoom = to.zoom; camera.updateProjectionMatrix(); camAnim = null; return; }
+  const from = { pos: camera.position.clone(), tgt: controls.target.clone(), zoom: camera.zoom };
+  const dist = from.pos.distanceTo(to.pos);
+  const interiorHop = Math.min(from.pos.y, to.pos.y) < 3 && dist > 2.5;
+  camAnim = { t0: performance.now(), dur: Math.min(2600, 1200 + dist * 55), from, to, lift: interiorHop ? Math.max(3.2, dist * 0.32) : 0 };
+}
+function stepCamera(now) {
+  if (!camAnim) return;
+  const k = Math.min(1, (now - camAnim.t0) / camAnim.dur);
+  const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+  camera.position.lerpVectors(camAnim.from.pos, camAnim.to.pos, e);
+  camera.position.y += camAnim.lift * Math.sin(Math.PI * e);
+  controls.target.lerpVectors(camAnim.from.tgt, camAnim.to.tgt, e);
+  camera.zoom = camAnim.from.zoom + (camAnim.to.zoom - camAnim.from.zoom) * e; camera.updateProjectionMatrix();
+  if (k >= 1) camAnim = null;
+}
+function resize() {
+  const r = host.getBoundingClientRect();
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  renderer.setSize(w, h); labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.fov = camera.aspect < 0.8 ? 64 : camera.aspect < 1.3 ? 52 : 42;
+  if (w > 900) camera.setViewOffset(w, h, -w * 0.07, h * 0.03, w, h); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  if (currentShot && !userCam) flyTo(currentShot, true);
+}
+new ResizeObserver(resize).observe(host);
+resize();
+flyTo('overview', true);
+
+/* ---------- theme ---------- */
+function isDark() {
+  const t = document.documentElement.getAttribute('data-theme');
+  if (t === 'dark') return true; if (t === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function applyTheme() { scene.background = new THREE.Color(isDark() ? 0x1D1C1D : C.stowe); M.ground.color.setHex(isDark() ? 0x3A3838 : 0xD3CABC); }
+applyTheme();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ---------- per-frame world update ---------- */
+let lastScreen = 0;
+function updateWorld(now, dt, sim, walkSpeed) {
+  for (const P of Object.values(people)) { if (P.tween) stepWalker(P, dt, walkSpeed); applyPose(P, dt); }
+  for (const P of bystanders) applyPose(P, dt);
+  // entrance and ICU doors
+  const near = (x, z, r) => Object.values(people).some(P => P.g.visible && Math.hypot(P.g.position.x - x, P.g.position.z - z) < r);
+  const open = near(-13, 0.15, 2.4) ? 1 : 0;
+  doorL.position.z += ((-0.66 - 1.3 * open) - doorL.position.z) * Math.min(1, dt * 5);
+  doorR.position.z += ((0.96 + 1.3 * open) - doorR.position.z) * Math.min(1, dt * 5);
+  const icuOpen = near(12.6, 4.5, 1.6) ? 1 : 0;
+  for (const d of icuDoors) { d.open += (icuOpen - d.open) * Math.min(1, dt * 4); d.hinge.rotation.y = d.s * -1.3 * d.open; }
+  // patch pulse, alarm, ICU sign
+  patchPulse = Math.max(0, patchPulse - dt * 1.4);
+  patchLed.scale.setScalar(1 + patchPulse * 0.7);
+  const blink = alarmOn ? (reduceMotion ? 1 : 0.5 + 0.5 * Math.sin(now / 160)) : 0;
+  alarmLight.intensity = alarmOn ? 0.25 + 0.6 * blink : 0;
+  bed2.call.material.emissiveIntensity = alarmOn ? 2.5 * blink : 0;
+  if (icuFlash) drawIcuSign(Math.floor(now / 400) % 2 === 0);
+  // screens about 8 times a second
+  if (now - lastScreen > 120) {
+    lastScreen = now;
+    const v = sim ? sim.values() : {};
+    const onBed = sim && sim.location === 'ward';
+    drawMonitor(monCanvas[1], onBed ? v : {}, { title: 'BED 2', right: sim ? sim.clock() : '', alarm: alarmOn });
+    drawMonitor(monCanvas[0], NORMAL_A, { title: 'BED 1', right: sim ? sim.clock() : '', lactate: false });
+    drawMonitor(monCanvas[2], NORMAL_B, { title: 'BED 3', right: sim ? sim.clock() : '', lactate: false });
+    const tv = sim && sim.triage ? v : {};
+    drawMonitor(triageScreen, { hr: tv.hr, spo2: tv.spo2, rr: tv.rr, sbp: tv.sbp, dbp: tv.dbp, temp: tv.temp }, { title: 'TRIAGE', right: sim && sim.triage ? `qSOFA ${sim.triage.q.score}/3` : '', lactate: false });
+    drawBoard(level, sim);
+    if (sim) { const m = Math.round(sim.def.startClock + sim.t); drawClock(m % (24 * 60)); }
+  }
+  for (const P of [...Object.values(people), ...bystanders]) if (P.bubbleUntil && now > P.bubbleUntil) { P.bubbleEl.classList.add('hidden'); P.bubbleUntil = 0; }
+}
+function cameraDependent() {   // what is drawn depends on where the camera is
+  const inside = camera.position.y < 2.62;
+  ceiling.visible = inside;
+  for (const l of zoneLabels) l.visible = !inside;
+  const focus = controls.target;
+  for (const P of [...Object.values(people), ...bystanders]) P.bubble.visible = P.g.visible && (!inside || P.g.position.distanceTo(focus) < 6.5);
+}
+function finishAllWalks() { for (const P of Object.values(people)) finishTween(P); }
+function anyWalking(names) { return names.some(n => people[n].tween); }
+function longWalk(names) { return names.some(n => people[n].tween && !(people[n].tween.delay > 0) && people[n].tween.total - people[n].tween.d > 5); }
+function render() { stepCamera(performance.now()); controls.update(); cameraDependent(); renderer.render(scene, camera); labelRenderer.render(scene, camera); }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { lastClockMin = -1; drawIcuSign(false); });
+
+/* ======================= REALISTIC PEOPLE =======================
+   Rigged humans from the Microsoft Rocketbox Avatar Library (MIT licence, github.com/microsoft/Microsoft-Rocketbox):
+   meshes converted from the original FBX to GLB (skeleton kept, textures loaded separately) + motion-captured clips (idle breathing, walking, sitting, talking). Textures were re-encoded to 1024 px WebP.
+   The primitive mannequins stay as a fallback and are hidden once an avatar has loaded. */
+const ASSET = 'assets/';
+const AV_FILES = {
+  nurse1: ['Medical_Female_01', 'f'], nurse2: ['Medical_Male_01', 'm'], doctor: ['Medical_Female_02', 'f'], anaes: ['Medical_Male_04', 'm'],
+  er: ['Male_Adult_21', 'm'], checkup: ['Female_Adult_06', 'f'], healthy: ['Female_Adult_02', 'f'], try: ['Male_Adult_14', 'm'],
+  by0: ['Male_Adult_03', 'm'], by1: ['Female_Adult_10', 'f']
+};
+const CLIP = { idle: 'idle_breathe_01', walk: 'walk_neutral_01', walkFast: 'walk_fast_01', sit: 'sit_chair_breathe_01', sitStaff: 'sit_chair_idle_neutral_01', talk: 'gestic_talk_neutral_01' };
+const PING = new Set(['sit_chair_idle_neutral_01', 'gestic_talk_neutral_01']);   // trimmed clips loop back and forth
+const STAFF = new Set(['nurse1', 'nurse2', 'doctor', 'anaes']);
+
+const gltfLoader = new GLTFLoader();
+const texLoader = new THREE.TextureLoader();
+const texCache = {};
+function avTex(name, srgb) {
+  if (!texCache[name]) {
+    const t = texLoader.load(ASSET + 'tex/' + name + '.webp');
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.anisotropy = 8;
+    texCache[name] = t;
+  }
+  return texCache[name];
+}
+function avatarMaterial(name) {
+  const pre = name.split('_')[0], part = name.split('_')[1];
+  // parts Rocketbox ships without a texture: give them plain materials instead of sampling the body texture
+  if (part === 'keffiyeh') return new THREE.MeshPhysicalMaterial({ name, color: 0xf6f4f0, roughness: 0.88, sheen: 0.5, sheenRoughness: 0.8, sheenColor: new THREE.Color(0xffffff), side: THREE.DoubleSide });
+  if (part === 'protection') return new THREE.MeshStandardMaterial({ name, color: 0xeef2f3, roughness: 0.92, side: THREE.DoubleSide });
+  if (part === 'stetoskop') return new THREE.MeshStandardMaterial({ name, color: 0x2a2d31, roughness: 0.45, metalness: 0.25 });
+  if (part === 'opacity') return new THREE.MeshStandardMaterial({ name, map: avTex(pre + '_opacity_color', true), alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.62 });
+  if (part === 'head') return new THREE.MeshPhysicalMaterial({ name, map: avTex(pre + '_head_color', true), normalMap: avTex(pre + '_head_normal', false), roughness: 0.48, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffd4c0) });
+  return new THREE.MeshPhysicalMaterial({ name, map: avTex(pre + '_body_color', true), normalMap: avTex(pre + '_body_normal', false), roughness: 0.82, sheen: 0.45, sheenRoughness: 0.8, sheenColor: new THREE.Color(0xf4efe8) });
+}
+const clipCache = {};
+function loadClip(gender, name) {
+  const key = gender + '_' + name;
+  if (!clipCache[key]) clipCache[key] = fetch(ASSET + 'anim/' + key + '.json').then(r => { if (!r.ok) throw new Error(key); return r.json(); }).then(d => {
+    const times = Float32Array.from({ length: d.n }, (_, i) => i / d.fps);
+    const tracks = d.tracks.filter(t => t.b.startsWith('Bip01')).map(t => {
+      const w = t.p === 'p' ? 3 : 4, tt = t.v.length === w ? new Float32Array([0]) : times;
+      const v = Float32Array.from(t.v);
+      if (t.p === 'p') { for (let i = 0; i < v.length; i += 3) { v[i] = 0; v[i + 2] = 0; } return new THREE.VectorKeyframeTrack(t.b + '.position', tt, v); }
+      return new THREE.QuaternionKeyframeTrack(t.b + '.quaternion', tt, v);
+    });
+    return new THREE.AnimationClip(name, d.dur, tracks);
+  });
+  return clipCache[key];
+}
+
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
+// rotate a bone about a WORLD axis, keeping its parent where it is
+function rotWorld(bone, axis, angle) {
+  if (!bone || !angle) return;
+  bone.parent.updateWorldMatrix(true, false);
+  bone.parent.getWorldQuaternion(_q1);
+  _q2.setFromAxisAngle(axis, angle);
+  _q3.copy(_q1).invert().multiply(_q2).multiply(_q1);
+  bone.quaternion.premultiply(_q3);
+  bone.updateWorldMatrix(false, true);
+}
+// move a bone along a WORLD direction (metres)
+function moveWorld(bone, dir, dist) {
+  if (!bone || !dist) return;
+  bone.getWorldPosition(_v1).addScaledVector(dir, dist);
+  bone.parent.worldToLocal(_v1);
+  bone.position.copy(_v1);
+  bone.updateWorldMatrix(false, true);
+}
+// turn a bone so the segment bone→child points along a world direction
+function aimBone(bone, child, dir, w = 1) {
+  if (!bone || !child) return;
+  child.updateWorldMatrix(true, false);
+  bone.getWorldPosition(_v1); child.getWorldPosition(_v2);
+  _v2.sub(_v1).normalize();
+  _q2.setFromUnitVectors(_v2, dir);
+  if (w < 1) _q2.slerp(_q3.identity(), 1 - w);
+  bone.parent.getWorldQuaternion(_q1);
+  _q3.copy(_q1).invert().multiply(_q2).multiply(_q1);
+  bone.quaternion.premultiply(_q3);
+  bone.updateWorldMatrix(false, true);
+}
+
+async function buildAvatar(key, P) {
+  const [file, gender] = AV_FILES[key];
+  const [grp, clips] = await Promise.all([
+    fetch(ASSET + 'avatars/' + file + '.glb.json').then(r => { if (!r.ok) throw new Error(file); return r.json(); }).then(j => {
+      const bin = atob(j.glb), buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return new Promise((res, rej) => gltfLoader.parse(buf.buffer, '', (g) => res(g.scene), rej));
+    }),
+    Promise.all(Object.values(CLIP).map(c => loadClip(gender, c).catch(() => null)))
+  ]);
+  grp.animations = [];
+  grp.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+    const mats = (Array.isArray(o.material) ? o.material : [o.material]).map(m => avatarMaterial(m.name));
+    o.material = mats.length === 1 ? mats[0] : mats;
+  });
+  const holder = new THREE.Group(), scaler = new THREE.Group();
+  scaler.scale.setScalar(0.01);          // centimetres → metres
+  scaler.add(grp); holder.add(scaler); P.g.add(holder);
+  const bone = (n) => grp.getObjectByName(n);
+  const B = {
+    root: bone('Bip01'), pelvis: bone('Bip01_Pelvis'), spine1: bone('Bip01_Spine1'), spine2: bone('Bip01_Spine2'), neck: bone('Bip01_Neck'), head: bone('Bip01_Head'),
+    lEye: bone('Bip01_LEye'), rEye: bone('Bip01_REye'), jaw: bone('Bip01_MJaw'),
+    lidTL: bone('Bip01_LEyeBlinkTop'), lidTR: bone('Bip01_REyeBlinkTop'), lidBL: bone('Bip01_LEyeBlinkBottom'), lidBR: bone('Bip01_REyeBlinkBottom'),
+    thighL: bone('Bip01_L_Thigh'), thighR: bone('Bip01_R_Thigh'), calfL: bone('Bip01_L_Calf'), calfR: bone('Bip01_R_Calf'), footL: bone('Bip01_L_Foot'), footR: bone('Bip01_R_Foot'),
+    armR: bone('Bip01_R_UpperArm'), foreR: bone('Bip01_R_Forearm'), armL: bone('Bip01_L_UpperArm'), foreL: bone('Bip01_L_Forearm'), handL: bone('Bip01_L_Hand'), handR: bone('Bip01_R_Hand')
+  };
+  const mixer = new THREE.AnimationMixer(grp);
+  const actions = {};
+  Object.keys(CLIP).forEach((k, i) => {
+    if (!clips[i]) return;
+    const a = mixer.clipAction(clips[i]);
+    if (PING.has(CLIP[k])) a.setLoop(THREE.LoopPingPong, Infinity);
+    actions[k] = a;
+  });
+  const faceRest = [B.lEye, B.rEye, B.jaw, B.lidTL, B.lidTR, B.lidBL, B.lidBR].filter(Boolean).map(b => [b, b.quaternion.clone(), b.position.clone()]);
+  // bones we bend after the mixer; their clean (animation-only) pose is restored before every mixer update,
+  // because the mixer skips writing a value that has not changed since its last write
+  const modBones = [B.spine1, B.spine2, B.neck, B.head, B.thighL, B.thighR, B.calfL, B.calfR, B.foreL, B.foreR].filter(Boolean);
+  const av = { faceRest, modBones, clean: modBones.map(b => b.quaternion.clone()), key, gender, grp, holder, scaler, B, mixer, actions, cur: null, blinkT: 2 + Math.random() * 3, blink: 0, breath: Math.random() * 6, look: new THREE.Vector2(), jaw: 0, phase: Math.random() * 10 };
+  // stand in the idle pose, then find which way the face points and how high the pelvis sits
+  if (actions.idle) { actions.idle.play(); av.cur = 'idle'; }
+  mixer.update(0);
+  holder.updateWorldMatrix(true, true);
+  const inv = new THREE.Matrix4().copy(holder.matrixWorld).invert();
+  const eyeMid = B.lEye.getWorldPosition(new THREE.Vector3()).add(B.rEye.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5).applyMatrix4(inv);
+  const headP = B.head.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv);
+  scaler.rotation.y = -Math.atan2(eyeMid.x - headP.x, eyeMid.z - headP.z);
+  holder.updateWorldMatrix(true, true);
+  av.pelvis0 = B.pelvis.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv);
+  av.eyeH = eyeMid.y;
+  P.av = av;
+  window.__avCount = (window.__avCount || 0) + 1;
+  P.inner.visible = false;
+  P.bubble.position.y = P.pose === 'sit' ? 1.55 : 2.02;
+  // soft contact shadow under the feet
+  const blob = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), M.blob);
+  blob.rotation.x = -Math.PI / 2; blob.position.y = 0.006; blob.renderOrder = 1; P.g.add(blob); av.blobMesh = blob;
+  if (P === people.patient) attachPatch(P);
+  applyPose(P, 0);
+  return av;
+}
+
+function setClip(av, k, fade = 0.35) {
+  if (av.cur === k || !av.actions[k]) return;
+  const next = av.actions[k], prev = av.cur && av.actions[av.cur];
+  next.reset().play();
+  if (prev && fade > 0) next.crossFadeFrom(prev, fade, false); else if (prev) prev.stop();
+  av.cur = k;
+}
+
+// called from applyPose() for people who have a loaded avatar
+function avatarPose(P, dt) {
+  const av = P.av, B = av.B, now = performance.now() / 1000;
+  const talking = P.bubbleUntil && performance.now() < P.bubbleUntil;
+  // choose the clip
+  if (P.tween && !(P.tween.delay > 0)) {
+    const sp = P.walkSpeed || 1.4;
+    setClip(av, sp > 2.1 && av.actions.walkFast ? 'walkFast' : 'walk', 0.25);
+    av.actions[av.cur].timeScale = sp / (av.cur === 'walkFast' ? 1.9 : 1.3);
+  } else if (P.pose === 'sit') setClip(av, STAFF.has(av.key) ? 'sitStaff' : 'sit', dt ? 0.4 : 0);
+  else if (P.pose === 'recline') setClip(av, 'idle', dt ? 0.4 : 0);
+  else setClip(av, talking && av.actions.talk ? 'talk' : 'idle', dt ? 0.45 : 0);
+  if (av.actions[av.cur] && !(P.tween && !(P.tween.delay > 0))) av.actions[av.cur].timeScale = 1;
+  av.modBones.forEach((b, i) => b.quaternion.copy(av.clean[i]));
+  av.mixer.update(dt);
+  av.modBones.forEach((b, i) => av.clean[i].copy(b.quaternion));
+  for (const [b, q, p] of av.faceRest) { b.quaternion.copy(q); b.position.copy(p); }
+
+  // whole-body placement
+  const h = av.holder;
+  if (P.pose === 'recline') {
+    const rx = -(Math.PI / 2 - P.recline);
+    h.rotation.set(rx, 0, 0);
+    _v1.copy(av.pelvis0).applyEuler(tmpE.set(rx, 0, 0));
+    h.position.set(-_v1.x, -_v1.y, -_v1.z);
+    av.blobMesh.visible = false;
+  } else {
+    h.rotation.set(0, 0, 0);
+    h.position.set(0, P.pose === 'sit' ? AV_SIT_DY : 0, 0);
+    av.blobMesh.visible = P.g.visible && !P.hidden;
+  }
+  h.updateWorldMatrix(true, true);
+
+  // character axes in world space
+  av.scaler.getWorldQuaternion(_q1);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(_q1);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(_q1);
+  const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(_q1);
+
+  if (P.pose === 'recline') {
+    // legs straight out along the mattress, towards the foot of the bed
+    const legDir = new THREE.Vector3(0, 0, 1).applyQuaternion(P.g.getWorldQuaternion(new THREE.Quaternion())).add(new THREE.Vector3(0, -0.04, 0)).normalize();
+    aimBone(B.thighL, B.calfL, legDir); aimBone(B.thighR, B.calfR, legDir);
+    const shin = legDir.clone().add(new THREE.Vector3(0, 0.05, 0)).normalize();
+    aimBone(B.calfL, B.footL, shin); aimBone(B.calfR, B.footR, shin);
+    // forearms resting on the blanket
+    const armDir = legDir.clone().add(new THREE.Vector3(0, 0.25, 0)).normalize();
+    aimBone(B.foreL, B.handL, armDir, 0.6); aimBone(B.foreR, B.handR, armDir, 0.6);
+  }
+  // breathing: faster when the patient's breathing rate is high
+  const rr = (P === people.patient && sim && sim.display.rr) ? sim.display.rr.v : 15;
+  av.breath += dt * Math.PI * 2 * rr / 60;
+  const br = Math.sin(av.breath);
+  rotWorld(B.spine2, right, -0.018 * br * (P.pose === 'recline' ? 1.3 : 1));
+  rotWorld(B.spine1, right, -0.008 * br);
+
+  // head and eyes turn towards whoever is near, or the camera when it is close
+  const target = lookTargetFor(P);
+  if (target && B.head) {
+    B.head.getWorldPosition(_v1);
+    _v2.copy(target).sub(_v1).normalize();
+    const yaw = Math.atan2(_v2.dot(right), _v2.dot(fwd)) * -1;
+    const pitch = Math.asin(THREE.MathUtils.clamp(_v2.dot(up), -1, 1));
+    const lim = P.pose === 'recline' ? 0.5 : 0.75;
+    av.look.x += (THREE.MathUtils.clamp(-yaw, -lim, lim) - av.look.x) * Math.min(1, dt * 2.5);
+    av.look.y += (THREE.MathUtils.clamp(pitch, -0.35, 0.35) - av.look.y) * Math.min(1, dt * 2.5);
+  } else { av.look.x *= Math.max(0, 1 - dt * 2); av.look.y *= Math.max(0, 1 - dt * 2); }
+  const sway = 0.04 * Math.sin(now * 0.37 + av.phase) + 0.025 * Math.sin(now * 0.83 + av.phase * 2);
+  rotWorld(B.neck, up, (av.look.x + sway) * 0.4);
+  rotWorld(B.head, up, (av.look.x + sway) * 0.6);
+  rotWorld(B.head, right, -av.look.y * 0.6 - 0.02 * Math.sin(now * 0.29 + av.phase));
+  const saccade = 0.05 * Math.sin(Math.floor(now * 0.9 + av.phase) * 12.9898);
+  for (const e of [B.lEye, B.rEye]) { rotWorld(e, up, av.look.x * 0.35 + saccade); rotWorld(e, right, -av.look.y * 0.3); }
+
+  // blinking
+  av.blinkT -= dt;
+  if (av.blinkT <= 0) { av.blink = 1; av.blinkT = 2.2 + Math.random() * 3.8; }
+  const close = window.__lid != null ? window.__lid : av.blink > 0 ? Math.sin(Math.min(1, av.blink) * Math.PI) : 0;
+  if (av.blink > 0) av.blink = Math.max(0, av.blink - dt / 0.18);
+  const LID = window.__lidAmt != null ? window.__lidAmt : AV_LID;
+  if (close > 0) { const down = up.clone().negate(); moveWorld(B.lidTL, down, LID * close); moveWorld(B.lidTR, down, LID * close); moveWorld(B.lidBL, up, LID * 0.3 * close); moveWorld(B.lidBR, up, LID * 0.3 * close); }
+
+  // jaw moves while speaking
+  const jawTarget = talking ? 0.07 + 0.07 * Math.abs(Math.sin(now * 11 + av.phase) * Math.sin(now * 4.3)) : 0;
+  av.jaw += (jawTarget - av.jaw) * Math.min(1, dt * 18);
+  if (av.jaw > 0.002) rotWorld(B.jaw, right, av.jaw);
+}
+const AV_SIT_DY = -0.04;   // tuned so hips rest on our 0.44 m seats
+const AV_LID = 0.0105;
+function lookTargetFor(P) {
+  P.g.getWorldPosition(_v1);
+  let best = null, bd = 2.6;
+  for (const Q of Object.values(people)) {
+    if (Q === P || !Q.g.visible || Q.hidden) continue;
+    const d = Q.g.position.distanceTo(P.g.position);
+    if (d < bd) { bd = d; best = Q; }
+  }
+  if (best) {
+    const t = new THREE.Vector3();
+    if (best.av && best.av.B.head) best.av.B.head.getWorldPosition(t); else t.copy(best.g.position).setY(best.pose === 'sit' ? 1.2 : 1.6);
+    return t;
+  }
+  if (camera.position.distanceTo(P.g.position) < 4.5 && camera.position.y < 2.6) return camera.position.clone();
+  return null;
+}
+function placePatchOnAvatar(P) {
+  const av = P.av, B = av.B;
+  scene.attach(patch);
+  av.holder.updateWorldMatrix(true, true);
+  const s = B.armR.getWorldPosition(new THREE.Vector3()), e = B.foreR.getWorldPosition(new THREE.Vector3());
+  const d = e.clone().sub(s), len = d.length(); d.normalize();
+  const point = s.clone().addScaledVector(d, len * 0.56);
+  const c = B.spine2.getWorldPosition(new THREE.Vector3());
+  const n = point.clone().sub(c); n.addScaledVector(d, -n.dot(d)); n.normalize();
+  patch.position.copy(point).addScaledVector(n, 0.048);
+  patch.quaternion.setFromUnitVectors(new THREE.Vector3(-1, 0, 0), n);
+  patch.scale.setScalar(1);
+  B.armR.attach(patch);
+}
+
+let avatarsStarted = false;
+function startAvatars(caseId) {
+  const order = ['nurse1', caseId, 'nurse2', 'doctor', 'anaes', 'by0', 'by1', ...['er', 'checkup', 'healthy', 'try'].filter(k => k !== caseId)];
+  if (avatarsStarted) return; avatarsStarted = true;
+  const target = (k) => STAFF.has(k) ? people[k] : k === 'by0' ? bystanders[0] : k === 'by1' ? bystanders[1] : patients[k];
+  (async () => {
+    for (const k of order) {
+      const P = target(k);
+      try { await buildAvatar(k, P); } catch (e) { window.__avFail = (window.__avFail || 0) + 1; console.warn('Avatar not loaded, keeping the simple figure:', k, e && e.message); }
+    }
+  })();
+}
+
+/* ======================= SIMULATION + OVERLAY ======================= */
+const K = E.constants;
+let sim = null, caseDef = E.CASES[0], playing = true, userSpeed = 1, interval = 15;
+let consumedAnim = 0, consumedLog = 0, stage = null, stageAt = 0, plan = null, lastUI = 0;
+let pendingShot = null, pendingAt = 0;
+
+// simulated minutes per real second, per stage (quiet waiting runs faster)
+const PACE = { arrive: 1.0, triage: 0.9, patch: 0.9, watch: 4.2, alert: 0.9, escalate: 0.9, bundle: 1.2, treated: 4.0, confirmed: 1.0, routine: 1.2, try: 1.5 };
+const TAB = { er: 'ER walk-in', checkup: 'Sore throat', healthy: 'Healthy check-up', try: 'Try it' };
+const LOC = { entrance: 'Arriving', triage: 'Triage', clinic: 'Clinic', ward: 'Ward · bed 2' };
+
+function stageOf(s) {
+  if (s.done) return 'end';
+  if (s.response) return s.sofa ? 'confirmed' : s.bundle.abx ? 'treated' : 'bundle';
+  if (s.alert) return s.esc.doctor.state === 'idle' ? 'alert' : 'escalate';
+  if (s.def.mode === 'try') return 'try';
+  if (s.patch && s.location === 'ward') return 'watch';
+  if (s.triage) return s.triage.level === 'routine' ? 'routine' : 'patch';
+  if (s.location === 'triage') return 'triage';
+  return 'arrive';
+}
+function planFor(def) {
+  const s = new E.Sim(def, { interval });
+  const list = []; let last = null, guard = 0;
+  while (!s.done && guard++ < 4000) { const k = stageOf(s); if (k !== last) { list.push({ key: k, t: s.t }); last = k; } s.step(0.25); }
+  list.push({ key: 'end', t: s.t });
+  return { list, end: s.t };
+}
+
+/* ---- case pills ---- */
+const casesEl = $('cases');
+for (const c of E.CASES) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.setAttribute('role', 'tab'); b.textContent = TAB[c.id] || c.tab; b.dataset.id = c.id;
+  b.addEventListener('click', () => loadCase(c.id));
+  casesEl.appendChild(b);
+}
+
+/* ---- try-it sliders (only the four inputs Badri's alert rule uses) ---- */
+const SLIDERS = [
+  { k: 'rr', label: 'Breathing', unit: '/min', min: 8, max: 40, step: 1 },
+  { k: 'sbp', label: 'Systolic BP', unit: 'mmHg', min: 60, max: 180, step: 1 },
+  { k: 'gcs', label: 'Alertness (GCS)', unit: '/15', min: 3, max: 15, step: 1 },
+  { k: 'lac', label: 'Lactate', unit: 'mmol/L', min: 0.5, max: 8, step: 0.1 }
+];
+const sliderEls = {};
+for (const s of SLIDERS) {
+  const w = document.createElement('div'); w.className = 'slider';
+  w.innerHTML = `<label for="sl-${s.k}">${s.label}<span id="slv-${s.k}"></span></label><input type="range" id="sl-${s.k}" min="${s.min}" max="${s.max}" step="${s.step}">`;
+  $('sliders').appendChild(w);
+  const input = w.querySelector('input');
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    sim.setManual(s.k, v);
+    if (s.k === 'sbp') sim.setManual('dbp', Math.round(v * 0.62));
+    syncSliders(); updateUI(true);
+  });
+  sliderEls[s.k] = input;
+}
+function syncSliders() {
+  if (!sim || !sim.manual) return;
+  for (const s of SLIDERS) {
+    const v = sim.manual[s.k]; sliderEls[s.k].value = v;
+    $('slv-' + s.k).textContent = (s.step < 1 ? Number(v).toFixed(1) : Math.round(v)) + ' ' + s.unit;
+  }
+}
+$('rescoreNow').addEventListener('click', () => { sim.rescoreNow(); consume(); updateUI(true); });
+$('presetSick').addEventListener('click', () => {
+  const sick = { rr: 26, sbp: 96, gcs: 14, lac: 3.1, hr: 122, temp: 39.0, spo2: 93 };
+  for (const [k, v] of Object.entries(sick)) sim.setManual(k, v);
+  sim.setManual('dbp', Math.round(96 * 0.62));
+  syncSliders(); updateUI(true);
+});
+
+/* ---- drawer content ---- */
+const VITALS = [
+  { k: 'rr', label: 'Breathing', unit: '/min', fmt: v => Math.round(v), flag: v => v >= 22 ? 'hot' : null },
+  { k: 'bp', label: 'Blood pressure', unit: 'mmHg' },
+  { k: 'gcs', label: 'Alertness (GCS)', unit: '/15', fmt: v => Math.round(v), flag: v => v <= 14 ? 'hot' : null },
+  { k: 'lac', label: 'Lactate (patch)', unit: 'mmol/L', fmt: v => v.toFixed(1), flag: v => v >= 2 ? 'hot' : null },
+  { k: 'hr', label: 'Heart rate', unit: '/min', fmt: v => Math.round(v), flag: v => v >= 100 ? 'warm' : null },
+  { k: 'temp', label: 'Temperature', unit: '°C', fmt: v => v.toFixed(1), flag: v => (v >= 38 || v < 36) ? 'warm' : null },
+  { k: 'spo2', label: 'Oxygen', unit: '%', fmt: v => Math.round(v), flag: v => v < 92 ? 'warm' : null }
+];
+const vEls = {};
+for (const d of VITALS) {
+  const r = document.createElement('div'); r.className = 'vrow';
+  r.innerHTML = `<span>${d.label}</span><span class="v">--</span><span class="s">not measured yet</span>`;
+  $('vitals').appendChild(r); vEls[d.k] = r;
+}
+const Q_ROWS = [['rr', 'Breathing 22/min or more'], ['sbp', 'Systolic BP 100 or lower'], ['ment', 'Alertness down (GCS 14 or lower)']];
+const qEls = {};
+for (const [k, name] of Q_ROWS) {
+  const r = document.createElement('div'); r.className = 'vrow';
+  r.innerHTML = `<span>${name}</span><span class="v">–</span>`;
+  $('qrows').appendChild(r); qEls[k] = r;
+}
+const SOFA_ROWS = [
+  { k: 'resp', organ: 'Lungs', measure: 'PaO₂/FiO₂', val: s => s.labs ? String(s.def.labs.pf) : null },
+  { k: 'coag', organ: 'Clotting', measure: 'Platelets', val: s => s.labs ? String(s.def.labs.plt) : null },
+  { k: 'liver', organ: 'Liver', measure: 'Bilirubin', val: s => s.labs ? s.def.labs.bili.toFixed(1) : null },
+  { k: 'cardio', organ: 'Circulation', measure: 'MAP', val: s => s.display.sbp ? String(Math.round(E.meanArterial(s.display.sbp.v, s.display.dbp.v))) : null },
+  { k: 'cns', organ: 'Brain', measure: 'GCS', val: s => s.display.gcs ? String(Math.round(s.display.gcs.v)) : null },
+  { k: 'renal', organ: 'Kidneys', measure: 'Creatinine', val: s => s.labs ? s.def.labs.creat.toFixed(1) : null }
+];
+const sofaEls = {};
+for (const r of SOFA_ROWS) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${r.organ}</td><td>${r.measure}</td><td class="tab">--</td><td class="p">--</td>`;
+  $('sofaBody').appendChild(tr); sofaEls[r.k] = tr;
+}
+const ESC = [['nurse', 'Ward nurse'], ['doctor', 'ER doctor'], ['mrp', 'Responsible physician'], ['icu', 'ICU team']];
+const escEls = {};
+for (const [k, name] of ESC) {
+  const r = document.createElement('div'); r.className = 'esc-row'; r.dataset.state = 'idle';
+  r.innerHTML = `<span class="dot"></span><div><div class="nm">${name}</div><div class="st">Not alerted</div></div><button class="btn" type="button" hidden>Acknowledge</button>`;
+  r.querySelector('button').addEventListener('click', () => { sim.acknowledge(k); consume(); updateUI(true); });
+  $('esc').appendChild(r); escEls[k] = r;
+}
+const BUNDLE = [['lactate', 'Measure lactate'], ['cultures', 'Blood cultures'], ['access', 'IV access'], ['abx', 'Antibiotics'], ['fluids', 'IV fluids'], ['vaso', 'Vasopressors if MAP stays under 65']];
+const checkEls = {};
+for (const [k, name] of BUNDLE) {
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="bx"></span><div><b>${name}</b> <span class="det"></span></div>`;
+  $('check').appendChild(li); checkEls[k] = li;
+}
+function opts(el, items, current, onPick) {
+  el.innerHTML = '';
+  for (const [v, label] of items) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.setAttribute('aria-pressed', String(v === current));
+    b.addEventListener('click', () => { for (const x of el.children) x.setAttribute('aria-pressed', String(x === b)); onPick(v); });
+    el.appendChild(b);
+  }
+}
+opts($('optInterval'), [[5, '5 min'], [15, '15 min'], [30, '30 min'], [60, '60 min']], interval, v => { interval = v; loadCase(caseDef.id); });
+opts($('optSpeed'), [[0.5, 'Slow'], [1, 'Normal'], [2, 'Fast']], userSpeed, v => { userSpeed = v; });
+
+/* ---- case lifecycle ---- */
+function consume() {
+  while (consumedAnim < sim.anim.length) applyAnim(sim.anim[consumedAnim++], caseDef.id);
+  patchJustOn = false;
+  const log = $('log'); let added = false;
+  while (consumedLog < sim.log.length) {
+    const l = sim.log[consumedLog++];
+    const li = document.createElement('li'); li.className = l.kind;
+    li.innerHTML = '<span class="t"></span><span></span>';
+    li.children[0].textContent = sim.clock(l.t); li.children[1].textContent = `${l.who}: ${l.text}`;
+    log.appendChild(li); added = true;
+  }
+  if (added) log.scrollTop = log.scrollHeight;
+}
+function loadCase(id, o = {}) {
+  caseDef = E.CASES.find(c => c.id === id) || E.CASES[0];
+  for (const b of casesEl.children) b.setAttribute('aria-selected', String(b.dataset.id === caseDef.id));
+  sim = new E.Sim(caseDef, { interval });
+  startAvatars(caseDef.id);
+  consumedAnim = 0; consumedLog = 0; $('log').innerHTML = '';
+  plan = caseDef.mode === 'try' ? null : planFor(caseDef);
+  $('end').hidden = true; document.body.classList.remove('ended');
+  consume();
+  if (o.seek) { while (sim.t < o.seek - 1e-6 && !sim.done) { sim.step(Math.min(0.5, o.seek - sim.t)); consume(); } }
+  finishAllWalks();
+  stage = null; userCam = false;
+  playing = o.play !== false && !reduceMotion;
+  setPlay();
+  const p = caseDef.patient;
+  $('pName').textContent = `${p.name}${p.age ? ', ' + p.age : ''}`;
+  $('pComplaint').textContent = p.complaint;
+  $('try').hidden = caseDef.mode !== 'try';
+  syncSliders();
+  try { if (location.hash !== '#' + caseDef.id) history.replaceState(null, '', '#' + caseDef.id); } catch (e) {}
+  updateUI(true);
+}
+function nextStep() {
+  if (sim.done) { nextCase(); return; }
+  if (caseDef.mode === 'try' && !sim.alert) { sim.rescoreNow(); consume(); updateUI(true); return; }
+  finishAllWalks();
+  const k0 = stageOf(sim); let g = 0;
+  while (!sim.done && stageOf(sim) === k0 && g++ < 3000) { sim.step(0.25); consume(); }
+  finishAllWalks(); updateUI(true);
+}
+function prevStep() {
+  if (!plan) { loadCase(caseDef.id); return; }
+  const cur = stageOf(sim);
+  let i = plan.list.findIndex(s => s.key === cur);
+  if (i < 0) i = plan.list.length - 1;
+  const fresh = performance.now() - stageAt < 2500;
+  const target = (cur === 'end' || fresh) ? plan.list[Math.max(0, i - 1)].t : plan.list[i].t;
+  loadCase(caseDef.id, { seek: target, play: playing });
+}
+function nextCase() { const i = E.CASES.indexOf(caseDef); loadCase(E.CASES[(i + 1) % E.CASES.length].id); }
+function setPlay() {
+  $('playText').textContent = playing ? 'Pause' : (sim && sim.done ? 'Replay' : 'Play');
+  $('playIcon').innerHTML = playing ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.3-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>';
+  $('play').setAttribute('aria-label', $('playText').textContent);
+}
+function togglePlay() { if (sim.done) { loadCase(caseDef.id); return; } playing = !playing; setPlay(); }
+function toggleDrawer(force) {
+  const d = $('drawer'), open = force != null ? force : d.dataset.open !== 'true';
+  d.dataset.open = String(open); d.inert = !open; $('details').setAttribute('aria-expanded', String(open));
+  if (open) updateUI(true);
+}
+function toggleFull() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  else document.exitFullscreen?.();
+}
+$('play').addEventListener('click', togglePlay);
+$('next').addEventListener('click', nextStep);
+$('back').addEventListener('click', prevStep);
+$('restart').addEventListener('click', () => loadCase(caseDef.id));
+$('details').addEventListener('click', () => toggleDrawer());
+$('closeDrawer').addEventListener('click', () => toggleDrawer(false));
+$('fs').addEventListener('click', toggleFull);
+$('replay').addEventListener('click', () => loadCase(caseDef.id));
+$('nextCase').addEventListener('click', nextCase);
+$('ack').addEventListener('click', () => { const r = $('ack').dataset.role; if (r) { sim.acknowledge(r); consume(); updateUI(true); } });
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input')) return;
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowRight') nextStep();
+  else if (e.key === 'ArrowLeft') prevStep();
+  else if (e.key === 'r' || e.key === 'R') loadCase(caseDef.id);
+  else if (e.key === 'd' || e.key === 'D') toggleDrawer();
+  else if (e.key === 'f' || e.key === 'F') toggleFull();
+  else if (e.key === 'c' || e.key === 'C') { userCam = false; currentShot = null; }
+  else if (e.key === 'Escape') toggleDrawer(false);
+  else if (/^[1-4]$/.test(e.key)) loadCase(E.CASES[+e.key - 1].id);
+});
+
+/* ---- words on screen ---- */
+const pron = (sex) => sex === 'F' ? ['she', 'her'] : sex === 'M' ? ['he', 'him'] : ['they', 'them'];
+function lastEvent(s, since) {
+  for (let i = s.log.length - 1; i >= 0; i--) { const l = s.log[i]; if (l.t < since) break; if (l.kind !== 'tick' && l.who !== 'Simulation') return l; }
+  return null;
+}
+function captionFor(k, s) {
+  const p = s.def.patient, [he, him] = pron(p.sex), first = p.name.split(' ')[0];
+  const v = s.values(), lac = v.lac != null ? v.lac.toFixed(1) : '--';
+  const q = v.rr != null ? E.qsofa(v).score : null;
+  switch (k) {
+    case 'arrive': return { chip: 'Arrival', h: `${first} walks into the ${p.settingShort}.`, p: `“${s.def.lines.arrive}”` };
+    case 'triage': return { chip: 'Triage', h: 'The nurse takes the usual vitals.', p: 'Breathing, pulse, blood pressure, temperature, oxygen, alertness. Badri scores them the moment they are in.' };
+    case 'patch': return { chip: 'Patch', h: `Close to the line, so ${he} gets a Badri patch.`, p: `${s.triage.why.join(' · ')}. Quick score ${s.triage.q.score} of 3: not an alarm yet, so the patch keeps watching.` };
+    case 'watch': return { chip: 'Watching', h: `Every ${s.interval} minutes, Badri re-scores ${him}.`, p: `The patch reads lactate every ${K.PATCH_SAMPLE} min. Lactate ${lac} mmol/L · quick score ${q ?? '–'} of 3${s.nextScoreAt != null ? ` · next re-score ${s.clock(s.nextScoreAt)}` : ''}.` };
+    case 'alert': return { chip: 'Alert', h: 'Sepsis alert. The ward nurse is notified.', p: s.alert.why.join(' · ') + (s.def.nurseBusy ? '. The nurse is with another patient.' : '.') };
+    case 'escalate': return s.esc.mrp.state !== 'idle'
+      ? { chip: 'Escalation', h: 'Still no answer: the physician and ICU are paged.', p: `${Math.round(s.t - s.alert.t)} minutes since the alert.` }
+      : { chip: 'Escalation', h: `No answer in ${K.ACK_WINDOW} minutes, so Badri pages the ER doctor.`, p: 'Badri does not wait. It moves to the next person on the list.' };
+    case 'bundle': { const e = lastEvent(s, s.response.t); return { chip: 'First hour', h: 'The hour-1 bundle starts at the bedside.', p: e ? `${e.who}: ${e.text}` : `Lactate ${lac} mmol/L is already known from the patch.` }; }
+    case 'treated': { const m = Math.round(s.bundle.abx.t - s.alert.t); return { chip: 'Treated', h: `Antibiotics in at minute ${m} of the first hour.`, p: (s.bundle.vaso ? s.bundle.vaso.text + '. ' : '') + `Blood tests for the full SOFA score take about ${K.LAB_TURNAROUND} minutes.` }; }
+    case 'confirmed': return { chip: 'Confirmed', h: s.sofa.total >= 2 ? `Labs confirm sepsis: SOFA ${s.sofa.total}.` : `Full SOFA ${s.sofa.total}.`, p: 'Treatment was already running when the results came back.' };
+    case 'routine': return { chip: 'All clear', h: 'No sepsis signs. No patch, no alarm.', p: s.location === 'clinic' ? 'The check-up carries on as normal.' : 'Badri stays quiet when nothing is wrong.' };
+    case 'try': return { chip: 'Try it', h: 'Your patient. Push the vitals over the line.', p: `Badri re-scores every ${s.interval} minutes. Move the sliders, then wait or press Re-score now.` };
+    case 'end': return { chip: 'Done', h: s.summary ? s.summary.title : 'Case complete', p: '' };
+  }
+  return { chip: '', h: '', p: '' };
+}
+function statusFor(s) {
+  const lv = s.status.level;
+  if (lv === 'alert') { const n = ESC.filter(([k]) => s.esc[k].state === 'notified').map(([, n]) => n.toLowerCase()); return `Sepsis alert · ${n.length ? n.join(', ') + ' paged' : 'sent'}`; }
+  if (lv === 'watch') return !s.patch ? 'Near the line · patch next' : s.nextScoreAt != null ? `Patch on · next re-score ${s.clock(s.nextScoreAt)}` : 'Patch on';
+  if (lv === 'respond') return 'First hour running';
+  if (lv === 'confirmed') return s.done ? 'Sepsis confirmed · treated early' : 'Sepsis confirmed';
+  if (lv === 'routine') return 'All clear · no patch needed';
+  return s.status.title;
+}
+
+/* ---- render the overlay ---- */
+function updateUI(force) {
+  const now = performance.now();
+  if (!force && now - lastUI < 110) return;
+  lastUI = now;
+  const s = sim, d = s.display, v = s.values();
+  $('clock').textContent = s.clock();
+  $('pLoc').textContent = LOC[s.location] || s.location;
+  const hasV = v.rr != null, q = hasV ? E.qsofa(v).score : null;
+  $('qBig').innerHTML = q == null ? '–' : `${q}<small>/ 3</small>`;
+  $('qBig').className = 'big' + (q >= 2 ? ' hot' : q === 1 ? ' warm' : '');
+  $('lacBig').innerHTML = v.lac == null ? '–' : `${v.lac.toFixed(1)}<small>mmol/L</small>`;
+  $('lacBig').className = 'big' + (v.lac >= 2 ? ' hot' : '');
+  const st = $('status'); st.dataset.level = s.status.level; $('stText').textContent = statusFor(s);
+  if (s.alert) {
+    const el = Math.max(0, s.t - s.alert.t);
+    $('hour').hidden = false; $('hourBar').style.width = Math.min(100, el / 60 * 100) + '%';
+    $('hourText').textContent = s.bundle.abx ? `Antibiotics at minute ${Math.round(s.bundle.abx.t - s.alert.t)} of the first hour` : `First hour · minute ${Math.floor(el)}`;
+  } else $('hour').hidden = true;
+  const waiting = s.alert && !s.response && !s.done ? ESC.find(([k]) => s.esc[k].state === 'notified') : null;
+  const ack = $('ack'); ack.hidden = !waiting;
+  if (waiting) { ack.dataset.role = waiting[0]; ack.textContent = `Acknowledge as ${waiting[1].toLowerCase()}`; }
+
+  const k = stage || stageOf(s), cap = captionFor(k, s);
+  $('stageChip').textContent = cap.chip; $('stageChip').dataset.level = s.status.level;
+  $('headline').textContent = cap.h; $('line').textContent = cap.p; $('line').hidden = !cap.p;
+  if (plan) {
+    const steps = plan.list.filter(x => x.key !== 'end');
+    const i = steps.findIndex(x => x.key === k);
+    $('stepChip').hidden = false; $('stepChip').textContent = k === 'end' ? `${steps.length} / ${steps.length}` : i >= 0 ? `${i + 1} / ${steps.length}` : '·';
+    $('prog').style.width = Math.min(100, (s.t / plan.end) * 100) + '%';
+  } else { $('stepChip').hidden = true; $('prog').style.width = '0%'; }
+
+  if ($('drawer').dataset.open !== 'true') return;
+  for (const vd of VITALS) {
+    const r = vEls[vd.k]; let val = null, src = null, at = null, flag = null;
+    if (vd.k === 'bp') { if (d.sbp) { val = `${Math.round(d.sbp.v)}/${Math.round(d.dbp.v)}`; src = d.sbp.src; at = d.sbp.at; flag = d.sbp.v <= 100 ? 'hot' : null; } }
+    else if (d[vd.k]) { val = vd.fmt(d[vd.k].v); src = d[vd.k].src; at = d[vd.k].at; flag = vd.flag(d[vd.k].v); }
+    r.className = 'vrow' + (flag ? ' ' + flag : '');
+    r.querySelector('.v').textContent = val == null ? '--' : `${val} ${vd.unit}`;
+    r.querySelector('.s').textContent = val == null ? (vd.k === 'lac' ? 'needs the patch or a blood test' : 'not measured yet') : `${src} · ${Math.max(0, Math.round(s.t - at))} min ago`;
+  }
+  const qq = hasV ? E.qsofa(v) : null;
+  for (const [key] of Q_ROWS) { const r = qEls[key]; const on = qq && qq[key]; r.className = 'vrow' + (on ? ' hot' : ''); r.querySelector('.v').textContent = qq ? (on ? 'Yes' : 'No') : '–'; }
+  for (const r of SOFA_ROWS) { const tr = sofaEls[r.k], val = r.val(s), pts = s.sofa ? s.sofa[r.k] : null; tr.children[2].textContent = val ?? '--'; tr.children[3].textContent = pts ?? '--'; tr.classList.toggle('hot', pts > 0); }
+  $('sofaTotal').textContent = s.sofa ? `Full SOFA ${s.sofa.total}${s.sofa.total >= 2 ? ': 2 or more, sepsis (Sepsis-3)' : ''}` : s.labsOrderedAt != null ? 'Full SOFA: blood tests running' : 'Full SOFA needs blood tests; ordered after an alert.';
+  for (const [key] of ESC) {
+    const e = s.esc[key], r = escEls[key]; r.dataset.state = e.state;
+    r.querySelector('.st').textContent = e.state === 'idle' ? (s.alert ? 'Standing by' : 'Not alerted') : e.state === 'notified' ? `Alerted ${s.clock(e.at)} · ${Math.round(s.t - e.at)} min, no answer` : `Answered ${s.clock(e.ackAt)}`;
+    r.querySelector('button').hidden = !(e.state === 'notified' && !s.done);
+  }
+  for (const [key] of BUNDLE) { const b = s.bundle[key], li = checkEls[key]; li.classList.toggle('done', !!b); li.querySelector('.det').textContent = b ? `${s.clock(b.t)} · ${b.text}` : (s.alert ? 'pending' : ''); }
+  drawTrend();
+}
+function drawTrend() {
+  const s = sim, svg = $('trend'), W = 340, H = 110, L = 26, R = 40, T = 8, B = 18;
+  const cs = getComputedStyle(document.documentElement);
+  const muted = cs.getPropertyValue('--muted').trim(), line = cs.getPropertyValue('--line').trim(), alert = cs.getPropertyValue('--alert').trim(), head = cs.getPropertyValue('--head').trim(), warm = cs.getPropertyValue('--warm').trim();
+  const pts = s.samples;
+  if (!pts.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${muted}" font-size="12">No patch readings yet</text>`; $('trendNote').textContent = s.triage && s.triage.level === 'routine' ? 'Patch not needed for this patient.' : 'Starts when the patch goes on.'; return; }
+  const t0 = pts[0].t, t1 = Math.max(t0 + 60, s.t);
+  const maxL = Math.max(4, Math.ceil(Math.max(...pts.map(p => p.lac)) + 0.5));
+  const X = t => L + (t - t0) / (t1 - t0) * (W - L - R), Y = v => T + (1 - v / maxL) * (H - T - B);
+  let g = '';
+  for (let y = 0; y <= maxL; y++) g += `<line x1="${L}" x2="${W - R}" y1="${Y(y)}" y2="${Y(y)}" stroke="${line}"/><text x="${L - 6}" y="${Y(y) + 4}" text-anchor="end" fill="${muted}" font-size="10">${y}</text>`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${Y(2)}" y2="${Y(2)}" stroke="${alert}" stroke-dasharray="4 3"/><text x="${W - R + 4}" y="${Y(2) + 4}" fill="${alert}" font-size="10">2.0</text>`;
+  if (s.alert && s.alert.t >= t0) g += `<line x1="${X(s.alert.t)}" x2="${X(s.alert.t)}" y1="${T}" y2="${H - B}" stroke="${alert}"/>`;
+  const dPath = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(p.lac).toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1];
+  g += `<path d="${dPath} L${X(last.t).toFixed(1)},${Y(0)} L${X(t0).toFixed(1)},${Y(0)} Z" fill="${warm}" opacity="0.15"/><path d="${dPath}" fill="none" stroke="${warm}" stroke-width="2.2" stroke-linejoin="round"/>`;
+  g += `<circle cx="${X(last.t)}" cy="${Y(last.lac)}" r="4" fill="${last.lac >= 2 ? alert : warm}"/><text x="${X(last.t) + 7}" y="${Y(last.lac) - 6}" fill="${head}" font-size="11" font-weight="600">${last.lac.toFixed(1)}</text>`;
+  g += `<text x="${L}" y="${H - 3}" fill="${muted}" font-size="10">${s.clock(t0)}</text><text x="${W - R}" y="${H - 3}" fill="${muted}" font-size="10" text-anchor="end">${s.clock(t1)}</text>`;
+  svg.innerHTML = g;
+  $('trendNote').textContent = `A reading every ${K.PATCH_SAMPLE} min; Badri re-scores every ${s.interval} min.`;
+}
+function showEnd() {
+  const s = sim; if (!s.summary) return;
+  $('endTitle').textContent = s.summary.title;
+  const box = $('endStats'); box.innerHTML = '';
+  for (const r of s.summary.rows) {
+    const d = document.createElement('div'); d.className = 'stat' + (/without/i.test(r.label) ? ' hot' : '');
+    d.innerHTML = '<span class="k"></span><span class="v"></span><span class="n"></span>';
+    d.children[0].textContent = r.label; d.children[1].textContent = r.value; d.children[2].textContent = r.note;
+    box.appendChild(d);
+  }
+  $('end').hidden = false; document.body.classList.add('ended');
+  playing = false; setPlay();
+}
+
+/* ---- camera direction ---- */
+function desiredShot() {
+  if (stage === 'end') return 'overview';
+  if (stage !== 'arrive' && longWalk(['patient', 'doctor', 'nurse2', 'anaes'])) return 'overview';
+  if (stage === 'patch' && people.patient.node !== 'triageChair') return 'bay';
+  if (stage === 'alert') return caseDef.nurseBusy ? 'bayWide' : 'station';
+  if (stage === 'escalate') return 'station';
+  return { arrive: 'arrive', triage: 'triage', patch: 'patch', watch: 'bay', bundle: 'bundle', treated: 'treated', confirmed: 'confirmed', routine: 'clinic', try: 'bay' }[stage] || 'overview';
+}
+function autoCamera(now) {
+  if (userCam) return;
+  const want = desiredShot();
+  if (want === currentShot) { pendingShot = null; return; }
+  if (pendingShot !== want) { pendingShot = want; pendingAt = now; return; }
+  if (now - pendingAt > 220 || currentShot == null) flyTo(want, currentShot == null);
+}
+
+/* ---- main loop ---- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const k = stageOf(sim);
+  if (k !== stage) { stage = k; stageAt = now; userCam = false; if (k === 'end') showEnd(); updateUI(true); }
+  const walking = anyWalking(['patient', 'nurse1', 'nurse2', 'doctor', 'anaes']);
+  if (playing && !sim.done && !walking) {
+    let pace = PACE[stage] ?? 1.2;
+    if (now - stageAt < 2600) pace = Math.min(pace, 0.75);
+    sim.step(dt * pace * userSpeed);
+    consume();
+  }
+  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 2.6 : 1.9) * userSpeed);
+  autoCamera(now);
+  render();
+  updateUI(false);
+  requestAnimationFrame(frame);
+}
+const startId = (location.hash || '').replace('#', '');
+loadCase(E.CASES.some(c => c.id === startId) ? startId : 'er');
+window.addEventListener('hashchange', () => { const id = location.hash.replace('#', ''); if (id && id !== caseDef.id && E.CASES.some(c => c.id === id)) loadCase(id); });
+requestAnimationFrame(frame);
+window.__badri = { consumeOnly() { consume(); }, consumeAll() { consume(); finishAllWalks(); }, snap() { stage = stageOf(sim); flyTo(desiredShot(), true); }, get sim() { return sim; }, nextStep, loadCase, flyTo, people, THREE, camera, controls, get stage() { return stage; } };
+
+</script>
+</body>
+</html>

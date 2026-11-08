@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Badri Sepsis Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;600&family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Palette: Stowe White, Wild Dove, Deep Lake, Red Ochre, Raku. --alert is a functional alarm colour added for the sepsis alarm only. */
+  --stowe: #EDE6DB; --dove: #7F7A83; --lake: #1C5469; --ochre: #BF8945; --raku: #5B595A;
+  --bg: var(--stowe);
+  --paper: rgba(250, 247, 242, 0.88);
+  --paper-solid: #FAF7F2;
+  --head: var(--lake);
+  --text: #3E3C3D;
+  --muted: #6F6A73;
+  --line: rgba(91, 89, 90, 0.16);
+  --seg: rgba(91, 89, 90, 0.08);
+  --primary: var(--lake);
+  --on-primary: #F7F3EC;
+  --warm: var(--ochre);
+  --alert: #A8432F;
+  --alert-soft: rgba(168, 67, 47, 0.1);
+  --shadow: 0 10px 34px rgba(28, 84, 105, 0.1), 0 1px 2px rgba(28, 84, 105, 0.06);
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --arabic: 'IBM Plex Sans Arabic', 'Inter', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1D1C1D; --paper: rgba(38, 37, 38, 0.88); --paper-solid: #262526; --head: #9CCBDB; --text: #ECE5DA; --muted: #ADA8B1;
+    --line: rgba(237, 230, 219, 0.13); --seg: rgba(237, 230, 219, 0.08); --primary: #9CCBDB; --on-primary: #10252D; --warm: #D6A15F;
+    --alert: #E07A62; --alert-soft: rgba(224, 122, 98, 0.15); --shadow: 0 10px 34px rgba(0, 0, 0, 0.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1D1C1D; --paper: rgba(38, 37, 38, 0.88); --paper-solid: #262526; --head: #9CCBDB; --text: #ECE5DA; --muted: #ADA8B1;
+  --line: rgba(237, 230, 219, 0.13); --seg: rgba(237, 230, 219, 0.08); --primary: #9CCBDB; --on-primary: #10252D; --warm: #D6A15F;
+  --alert: #E07A62; --alert-soft: rgba(224, 122, 98, 0.15); --shadow: 0 10px 34px rgba(0, 0, 0, 0.35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--font); overflow: hidden; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.k { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.tab { font-variant-numeric: tabular-nums; }
+
+#scene { position: fixed; inset: 0; }
+#scene canvas { display: block; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.shade { position: fixed; left: 0; right: 0; pointer-events: none; z-index: 1; }
+.shade.t { top: 0; height: 120px; background: linear-gradient(color-mix(in srgb, var(--bg) 80%, transparent), transparent); }
+.shade.b { bottom: 0; height: 260px; background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 88%, transparent) 70%); }
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 6; }
+.progress i { display: block; height: 100%; width: 0; background: var(--warm); transition: width 0.3s linear; }
+
+/* top bar */
+.top { position: fixed; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 16px; padding: 16px 22px; }
+.brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.mark { width: 34px; height: 34px; flex: none; }
+.name { font: 600 21px/1 var(--display); letter-spacing: -0.04em; color: var(--head); display: flex; align-items: baseline; gap: 8px; }
+.name span { font: 600 18px/1 var(--arabic); letter-spacing: 0; color: var(--warm); }
+.sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.seg { margin-left: auto; display: flex; gap: 2px; padding: 4px; background: var(--paper); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.seg button { border: 0; background: transparent; color: var(--muted); padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; min-height: 36px; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-selected="true"] { background: var(--paper-solid); color: var(--head); box-shadow: var(--shadow); font-weight: 600; }
+
+/* the one card */
+.card { position: fixed; top: 82px; left: 22px; z-index: 4; width: 300px; background: var(--paper); backdrop-filter: blur(16px) saturate(1.1); -webkit-backdrop-filter: blur(16px) saturate(1.1); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; box-shadow: var(--shadow); }
+.card .row { display: flex; justify-content: space-between; align-items: baseline; }
+.card .clock { font: 600 15px var(--display); letter-spacing: -0.01em; color: var(--head); font-variant-numeric: tabular-nums; }
+.who { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; }
+.who b { font: 600 18px/1.2 var(--display); letter-spacing: -0.03em; color: var(--text); }
+.loc { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--seg); color: var(--muted); white-space: nowrap; }
+.cc { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.nums { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.big { display: block; font: 500 34px/1.05 var(--display); letter-spacing: -0.05em; color: var(--head); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.big small { font: 500 13px var(--font); letter-spacing: 0; color: var(--muted); margin-left: 3px; }
+.big.hot { color: var(--alert); }
+.big.warm { color: var(--warm); }
+.status { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 500; padding: 9px 11px; border-radius: 11px; background: var(--seg); }
+.status i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.status[data-level="routine"] i, .status[data-level="respond"] i { background: var(--lake); }
+.status[data-level="watch"] i { background: var(--warm); }
+.status[data-level="alert"], .status[data-level="confirmed"] { background: var(--alert-soft); color: var(--alert); }
+.status[data-level="alert"] i, .status[data-level="confirmed"] i { background: var(--alert); }
+.status[data-level="alert"] i { animation: ping 1s ease-in-out infinite; }
+@keyframes ping { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--alert) 25%, transparent); } }
+.hour { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.hour .bar { height: 6px; border-radius: 999px; background: var(--seg); overflow: hidden; margin-bottom: 5px; }
+.hour .bar i { display: block; height: 100%; width: 0; background: var(--lake); transition: width 0.2s; }
+.card .ack { width: 100%; margin-top: 10px; justify-content: center; }
+.try { margin-top: 12px; display: grid; gap: 9px; }
+.slider label { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+.slider label span { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.slider input { width: 100%; accent-color: var(--lake); margin: 2px 0 0; }
+.try .btns { display: flex; gap: 8px; }
+.try .btns .btn { flex: 1; justify-content: center; }
+
+/* bottom: caption left, controls right */
+.bottom { position: fixed; left: 22px; right: 22px; bottom: 20px; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; pointer-events: none; }
+.bottom > * { pointer-events: auto; }
+.caption { max-width: 660px; min-width: 0; }
+.chips { display: flex; gap: 6px; }
+.chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--muted); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.chip.lvl { color: var(--head); }
+.chip.lvl[data-level="watch"] { color: var(--warm); }
+.chip.lvl[data-level="alert"], .chip.lvl[data-level="confirmed"] { color: var(--alert); }
+h1 { font: 600 clamp(27px, 3.2vw, 46px)/1.04 var(--display); letter-spacing: -0.045em; color: var(--head); margin: 10px 0 8px; text-wrap: balance; }
+.caption p { margin: 0; font-size: 16px; max-width: 58ch; color: var(--text); text-wrap: pretty; }
+.ctrl { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 44px; padding: 0 15px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper-solid); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px rgba(28, 84, 105, 0.06); }
+.btn:hover { border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); min-width: 108px; justify-content: center; }
+.btn[aria-expanded="true"] { background: var(--seg); }
+.btn.icon { padding: 0; justify-content: center; }
+.btn.alert { background: var(--alert); border-color: var(--alert); color: #fff; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.keys { font-size: 11.5px; color: var(--muted); }
+
+/* details drawer */
+.drawer { position: fixed; top: 82px; right: 22px; bottom: 112px; z-index: 5; width: 380px; overflow-y: auto; background: var(--paper); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 4px 18px 18px; transform: translateX(calc(100% + 40px)); transition: transform 0.35s cubic-bezier(.2,.7,.2,1); }
+.drawer[data-open="true"] { transform: none; }
+.dhead { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 10px 0 6px; margin: 0 -2px; background: linear-gradient(var(--paper-solid) 75%, transparent); }
+.dhead .btn { min-height: 36px; min-width: 36px; }
+.drawer section { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.drawer section:last-child { border-bottom: 0; }
+.drawer h2 { font: 600 15px var(--display); letter-spacing: -0.02em; color: var(--head); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.drawer h2 small { font: 500 11.5px var(--font); color: var(--muted); letter-spacing: 0; }
+.vrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 6px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+.vrow:last-child { border-bottom: 0; }
+.vrow .v { font: 600 15px var(--display); font-variant-numeric: tabular-nums; text-align: right; }
+.vrow .s { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.vrow.hot .v { color: var(--alert); }
+.vrow.warm .v { color: var(--warm); }
+.trend svg { width: 100%; height: 110px; display: block; }
+.note { font-size: 11.5px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; padding: 4px 3px; border-bottom: 1px solid var(--line); }
+td { padding: 5px 3px; border-bottom: 1px solid var(--line); }
+td.p { text-align: right; font-weight: 600; }
+tr.hot td.p { color: var(--alert); }
+.esc-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.esc-row[data-state="notified"] .dot { background: var(--alert); }
+.esc-row[data-state="ack"] .dot { background: var(--lake); }
+.esc-row .nm { font-size: 13px; font-weight: 600; }
+.esc-row .st { font-size: 11.5px; color: var(--muted); }
+.esc-row .btn { min-height: 34px; padding: 0 10px; font-size: 12.5px; }
+.check { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.check li { display: grid; grid-template-columns: 16px 1fr; gap: 8px; font-size: 12.5px; }
+.check .bx { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--line); margin-top: 2px; }
+.check li.done .bx { background: var(--lake); border-color: var(--lake); }
+.check .det { color: var(--muted); }
+.opts { display: flex; gap: 2px; padding: 3px; background: var(--seg); border-radius: 11px; width: max-content; margin: 4px 0 10px; }
+.opts button { border: 0; background: transparent; border-radius: 8px; padding: 6px 11px; font-size: 12.5px; cursor: pointer; color: var(--muted); min-height: 32px; }
+.opts button[aria-pressed="true"] { background: var(--paper-solid); color: var(--head); font-weight: 600; box-shadow: var(--shadow); }
+.log { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 220px; overflow-y: auto; }
+.log li { display: grid; grid-template-columns: 42px 1fr; gap: 8px; padding: 3px 0; }
+.log li .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.log li.alert { color: var(--alert); }
+.log li.tick { color: var(--muted); }
+.drawer a { color: var(--head); }
+
+/* end card */
+.endcard { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7; width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; background: var(--paper-solid); border: 1px solid var(--line); border-radius: 22px; padding: 26px 28px; box-shadow: 0 30px 80px rgba(28, 84, 105, 0.22); }
+.endcard h2 { font: 600 28px/1.1 var(--display); letter-spacing: -0.04em; color: var(--head); margin: 6px 0 18px; text-wrap: balance; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin-bottom: 22px; }
+.stats:has(> :nth-child(4)) { grid-template-columns: 1fr 1fr; }
+body.ended .caption { visibility: hidden; }
+.stat .v { display: block; font: 500 30px/1.05 var(--display); letter-spacing: -0.04em; color: var(--head); margin: 4px 0 3px; font-variant-numeric: tabular-nums; }
+.stat .n { font-size: 12px; color: var(--muted); }
+.stat.hot .v { color: var(--alert); }
+.endcard .row { display: flex; gap: 8px; justify-content: flex-end; }
+.endcard .fine { font-size: 11.5px; color: var(--muted); margin: -8px 0 16px; }
+
+/* 3D labels */
+.zone { font: 600 10.5px/1 var(--font); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--paper); border: 1px solid var(--line); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.zone.flash { background: var(--alert); color: #fff; border-color: var(--alert); }
+.bubble { max-width: 220px; background: var(--paper-solid); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 7px 10px; font-size: 12.5px; line-height: 1.3; box-shadow: var(--shadow); transform: translateY(-8px); transition: opacity 0.25s; text-align: center; }
+.bubble b { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.bubble.hidden { opacity: 0; }
+.bubble.badri { border-color: var(--alert); }
+.bubble.badri b { color: var(--alert); }
+
+@media (max-width: 900px) {
+  .top { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
+  .seg { margin-left: 0; width: 100%; }
+  .card { top: 118px; left: 14px; width: 260px; padding: 12px 14px; }
+  .cc { display: none; }
+  .big { font-size: 28px; }
+  .bottom { left: 14px; right: 14px; bottom: 14px; flex-direction: column; align-items: stretch; gap: 12px; }
+  .ctrl { align-items: stretch; }
+  .controls { justify-content: space-between; flex-wrap: nowrap; }
+  .controls .btn .t { display: none; }
+  .controls .btn { flex: 1; justify-content: center; padding: 0; }
+  .btn.primary { min-width: 0; }
+  .keys { display: none; }
+  .drawer { top: auto; left: 14px; right: 14px; bottom: 14px; width: auto; height: 68vh; transform: translateY(calc(100% + 30px)); }
+  .shade.b { height: 300px; }
+}
+@media (max-width: 560px) {
+  .sub { display: none; }
+  .card { right: 14px; width: auto; }
+  .nums { margin: 10px 0 8px; padding-top: 8px; }
+  .caption p { font-size: 14.5px; }
+  h1 { font-size: 25px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status[data-level="alert"] i { animation: none; }
+  .drawer, .progress i, .hour .bar i { transition: none; }
+}
+</style>
+</head>
+<body>
+<div id="scene" role="img" aria-label="3D hospital: entrance, triage, ward with three beds, clinic, nurse station and ICU doors"></div>
+<div class="shade t"></div><div class="shade b"></div>
+<div class="progress" aria-hidden="true"><i id="prog"></i></div>
+
+<header class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
+      <rect width="34" height="34" rx="10" fill="#1C5469"/>
+      <path d="M8 21.5a9 9 0 0 1 18 0z" fill="#BF8945"/>
+      <rect x="6" y="21.5" width="22" height="2" rx="1" fill="#EDE6DB"/>
+      <rect x="10" y="25.5" width="14" height="1.6" rx=".8" fill="#EDE6DB" opacity=".55"/>
+    </svg>
+    <div>
+      <div class="name">Badri <span lang="ar" dir="rtl">بدري</span></div>
+      <div class="sub">Sepsis early warning · a simulated hospital</div>
+    </div>
+  </div>
+  <nav class="seg" id="cases" role="tablist" aria-label="Choose a case"></nav>
+</header>
+
+<section class="card" id="card" aria-label="Patient">
+  <div class="row"><span class="k">Patient</span><span class="clock" id="clock">09:00</span></div>
+  <div class="who"><b id="pName"></b><span class="loc" id="pLoc"></span></div>
+  <div class="cc" id="pComplaint"></div>
+  <div class="nums">
+    <div><span class="k">Quick score</span><span class="big" id="qBig">–</span></div>
+    <div><span class="k">Lactate · patch</span><span class="big" id="lacBig">–</span></div>
+  </div>
+  <div class="status" id="status" data-level="arriving"><i></i><span id="stText">Arriving</span></div>
+  <div class="hour" id="hour" hidden><div class="bar"><i id="hourBar"></i></div><span id="hourText"></span></div>
+  <div class="try" id="try" hidden>
+    <div id="sliders"></div>
+    <div class="btns"><button class="btn" id="presetSick" type="button">Make septic</button><button class="btn" id="rescoreNow" type="button">Re-score now</button></div>
+  </div>
+  <button class="btn alert ack" id="ack" type="button" hidden></button>
+</section>
+
+<div class="bottom">
+  <div class="caption" aria-live="polite">
+    <div class="chips"><span class="chip tab" id="stepChip"></span><span class="chip lvl" id="stageChip"></span></div>
+    <h1 id="headline"></h1>
+    <p id="line"></p>
+  </div>
+  <div class="ctrl">
+    <div class="controls" role="group" aria-label="Simulation controls">
+      <button class="btn" id="back" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="t">Back</span></button>
+      <button class="btn primary" id="play" type="button"><svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span class="t" id="playText">Pause</span></button>
+      <button class="btn" id="next" type="button" aria-label="Next"><span class="t">Next</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      <button class="btn" id="restart" type="button" aria-label="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span class="t">Restart</span></button>
+      <button class="btn" id="details" type="button" aria-expanded="false" aria-controls="drawer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M14 4v16"/></svg><span class="t">Details</span></button>
+      <button class="btn icon" id="fs" type="button" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+    </div>
+    <div class="keys">Space play · ← → step · D details · F full screen · drag to look around</div>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer" data-open="false" aria-label="Details" inert>
+  <div class="dhead"><span class="k">Details</span><button class="btn icon" id="closeDrawer" type="button" aria-label="Close details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <section>
+    <h2>Vitals <small>latest reading and where it came from</small></h2>
+    <div id="vitals"></div>
+  </section>
+  <section class="trend">
+    <h2>Lactate from the patch <small>mmol/L</small></h2>
+    <svg id="trend" viewBox="0 0 340 110" role="img" aria-label="Lactate trend from the Badri patch"></svg>
+    <div class="note" id="trendNote"></div>
+  </section>
+  <section>
+    <h2>Scores <small>Sepsis-3</small></h2>
+    <div id="qrows"></div>
+    <table aria-label="Full SOFA score"><thead><tr><th>Organ</th><th>Measure</th><th>Value</th><th style="text-align:right">Pts</th></tr></thead><tbody id="sofaBody"></tbody></table>
+    <p class="note" id="sofaTotal"></p>
+    <p class="note">Badri alerts at quick score 2, or lactate 2 or more with any quick-score point, or lactate 4 or more alone. Demo thresholds, to be set with clinicians.</p>
+  </section>
+  <section>
+    <h2>Who gets alerted <small>escalates if nobody answers</small></h2>
+    <div id="esc"></div>
+  </section>
+  <section>
+    <h2>First hour <small>hour-1 sepsis bundle</small></h2>
+    <ul class="check" id="check"></ul>
+  </section>
+  <section>
+    <h2>Settings</h2>
+    <span class="k">Badri re-scores every</span>
+    <div class="opts" id="optInterval" role="group" aria-label="Re-score interval"></div>
+    <span class="k">Playback</span>
+    <div class="opts" id="optSpeed" role="group" aria-label="Playback speed"></div>
+  </section>
+  <section>
+    <h2>Event log</h2>
+    <ol class="log" id="log"></ol>
+  </section>
+  <section class="note">
+    Concept simulation with demo thresholds; the Badri patch is not a validated diagnostic.
+    Scores: <a href="https://pubmed.ncbi.nlm.nih.gov/26903338/">Sepsis-3 (Singer et al., JAMA 2016)</a>; SOFA bands as tabulated by the
+    <a href="https://www.msdmanuals.com/professional/multimedia/table/sequential-organ-failure-assessment-sofa-score">MSD Manual</a>;
+    hour-1 bundle: <a href="https://doi.org/10.1007/s00134-018-5085-0">Surviving Sepsis Campaign (Levy et al., 2018)</a>.
+  </section>
+</aside>
+
+<div class="endcard" id="end" role="dialog" aria-labelledby="endTitle" hidden>
+  <span class="k">Case complete</span>
+  <h2 id="endTitle"></h2>
+  <div class="stats" id="endStats"></div>
+  <p class="fine">Simulated case with demo thresholds.</p>
+  <div class="row"><button class="btn" id="replay" type="button">Replay</button><button class="btn primary" id="nextCase" type="button">Next case</button></div>
+</div>
+
+<script>
+/*__ENGINE__*/
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/*__APP__*/
+</script>
+</body>
+</html>
