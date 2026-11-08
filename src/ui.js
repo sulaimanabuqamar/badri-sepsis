@@ -5,7 +5,7 @@ let consumedAnim = 0, consumedLog = 0, stage = null, stageAt = 0, plan = null, l
 let pendingShot = null, pendingAt = 0;
 
 // simulated minutes per real second, per stage (quiet waiting runs faster)
-const PACE = { arrive: 1.8, triage: 1.6, patch: 1.6, watch: 7.5, alert: 1.6, escalate: 1.6, bundle: 2.2, treated: 7.0, confirmed: 1.8, routine: 2.2, try: 2.5 }; // 8 Nov: ~1.75x faster (Rayan)
+const PACE = { arrive: 5.0, triage: 4.0, patch: 5.0, watch: 20, alert: 4.0, escalate: 4.0, bundle: 8.0, treated: 24, confirmed: 6.0, routine: 7.0, try: 2.5 }; // 8 Nov 17:56: whole case in about 20 s (Rayan)
 const TAB = { er: 'ER walk-in', checkup: 'After childbirth', healthy: 'Healthy check-up', try: 'Try it' };
 const LOC = { entrance: 'Arriving', triage: 'Triage', clinic: 'Clinic', ward: 'Ward · bed 2' };
 
@@ -378,8 +378,9 @@ function showEnd() {
 /* ---- camera direction ---- */
 function desiredShot() {
   if (stage === 'end') return 'overview';
-  // Rayan 8 Nov 17:43: once the patched patient gets up, cut straight to her bed (no pan out, no pan back to triage)
-  if (stage === 'patch' && ((people.patient.tween && !(people.patient.tween.delay > 0)) || people.patient.node !== 'triageChair')) return 'bay';
+  // Rayan 8 Nov 17:56: stay zoomed out for her whole walk to the bed, then the bed (never back to triage)
+  if (stage === 'patch' && people.patient.tween && !(people.patient.tween.delay > 0)) return 'overview';
+  if (stage === 'patch' && people.patient.node !== 'triageChair') return 'bay';
   if (stage !== 'arrive' && longWalk(['patient', 'doctor', 'nurse2', 'anaes'])) return 'overview';
   if (stage === 'alert') return caseDef.nurseBusy ? 'bayWide' : 'station';
   if (stage === 'escalate') return 'station';
@@ -403,11 +404,11 @@ function frame(now) {
   const walking = anyWalking(['patient', 'nurse1', 'nurse2', 'doctor', 'anaes']);
   if (playing && !sim.done && !walking) {
     let pace = PACE[stage] ?? 1.2;
-    if (now - stageAt < 1400) pace = Math.min(pace, 1.2);
+    if (now - stageAt < 500) pace = Math.min(pace, 2.0);
     sim.step(dt * pace * userSpeed);
     consume();
   }
-  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 3.6 : 2.8) * userSpeed);
+  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 9.0 : 8.0) * userSpeed);
   autoCamera(now);
   render();
   updateUI(false);
