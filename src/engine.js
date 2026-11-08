@@ -434,22 +434,21 @@
       summaryTitle: 'Caught before his blood pressure crashed'
     },
     {
-      id: 'checkup', tab: 'Check-up: "sore throat"', mode: 'case', seed: 2.7, startClock: 9 * 60,
-      title: 'Routine check-up, "just a sore throat"',
-      blurb: 'A diabetes check-up. She mentions a sore throat. Her chest is infected.',
-      patient: { name: 'Fatima A.', age: 78, sex: 'F', setting: 'Outpatient clinic', settingShort: 'clinic', complaint: 'Routine diabetes check-up; mentions a sore throat' },
+      id: 'checkup', tab: 'After childbirth', mode: 'case', seed: 2.7, startClock: 9 * 60,
+      title: 'Two months after giving birth',
+      blurb: 'Chills and fast breathing, two months after giving birth. One warning sign at triage: not enough for an alarm.',
+      patient: { name: 'Fatima (name changed)', age: 34, sex: 'F', setting: 'Emergency department', settingShort: 'ER', complaint: 'Chills since last night; gave birth two months ago' },
       infection: true, nurseAck: 2, doctorAck: null, ivFails: 0,
-      lines: { arrive: 'Just my check-up. I have a bit of a sore throat.', nurseAtBed: 'Your patch flagged a change. I\'m calling the doctor.' },
+      lines: { arrive: 'I\'ve had chills since last night. My baby is two months old.', nurseAtBed: 'Your patch flagged a change. I\'m calling the doctor.' },
       keys: [
-        { t: 0, hr: 98, rr: 22, temp: 37.8, sbp: 124, dbp: 74, spo2: 94, gcs: 15, lac: 1.7 },
-        { t: 30, hr: 100, rr: 22.5, temp: 37.9, sbp: 120, dbp: 72, spo2: 93, gcs: 15, lac: 1.9 },
-        { t: 50, hr: 104, rr: 23, temp: 38.1, sbp: 116, dbp: 70, spo2: 92, gcs: 14, lac: 2.2 },
-        { t: 90, hr: 108, rr: 24, temp: 38.3, sbp: 110, dbp: 66, spo2: 91, gcs: 14, lac: 2.6 },
-        { t: 200, hr: 112, rr: 26, temp: 38.4, sbp: 104, dbp: 62, spo2: 90, gcs: 13, lac: 3.1 }
+        { t: 0, hr: 106, rr: 22, temp: 38.3, sbp: 108, dbp: 66, spo2: 97, gcs: 15, lac: 1.7 },
+        { t: 30, hr: 110, rr: 22.5, temp: 38.5, sbp: 106, dbp: 64, spo2: 97, gcs: 15, lac: 1.9 },
+        { t: 50, hr: 116, rr: 23, temp: 38.6, sbp: 103, dbp: 62, spo2: 96, gcs: 15, lac: 2.2 },
+        { t: 90, hr: 122, rr: 25, temp: 38.8, sbp: 100, dbp: 60, spo2: 95, gcs: 15, lac: 2.7 },
+        { t: 200, hr: 130, rr: 27, temp: 38.9, sbp: 92, dbp: 54, spo2: 94, gcs: 14, lac: 3.4 }
       ],
-      labs: { plt: 165, bili: 0.9, creat: 1.4, pf: 280, vent: false },
-      withoutBadri: { label: 'Without Badri', value: 'Sent home', note: 'one borderline reading at a routine check-up' },
-      summaryTitle: 'A "sore throat" that was sepsis, caught at a check-up'
+      labs: { plt: 140, bili: 1.0, creat: 1.3, pf: 340, vent: false },
+      summaryTitle: 'Caught before her blood pressure fell'
     },
     {
       id: 'healthy', tab: 'Check-up: healthy', mode: 'case', seed: 4.1, startClock: 11 * 60,

@@ -201,7 +201,17 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
 .pcard .opts { margin: 4px 0 8px; }
 .pstats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 10px 0; margin: 2px 0 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .pstats b { display: block; font: 600 17px/1.15 var(--display); letter-spacing: -0.02em; color: var(--head); margin-top: 2px; font-variant-numeric: tabular-nums; }
-.pcard .pcycle { width: 100%; justify-content: center; }
+.pcard .pcycle, .pcard .ptourbtn { width: 100%; justify-content: center; }
+.pcard .ptourbtn { margin-bottom: 6px; }
+.ptour { display: flex; align-items: center; gap: 14px; margin-top: 12px; max-width: 760px; pointer-events: auto; }
+.pseg { display: flex; gap: 4px; flex: none; width: min(420px, 34vw); }
+.pseg i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; display: block; }
+.pseg i b { display: block; height: 100%; width: 0; background: var(--head); }
+.pctl { display: flex; gap: 6px; flex: none; }
+.pctl button { min-width: 40px; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper-solid); color: var(--text); font: 600 15px/1 var(--font); cursor: pointer; }
+.pctl #pPlay { min-width: 86px; background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.pctl button:disabled { opacity: 0.4; cursor: default; }
+.ptourcta { margin-top: 10px; pointer-events: auto; }
 .pread { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; padding: 10px 11px; border-radius: 12px; background: var(--seg); margin-top: 6px; }
 .pread .ch { font: 600 30px/1 var(--display); letter-spacing: -0.04em; color: var(--head); grid-row: span 2; }
 .pread .nm { font-size: 13px; font-weight: 600; }
@@ -244,6 +254,11 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
   .plabel.needle span { font-size: 9.5px; padding: 3px 6px; }
   .pbottom h1 { font-size: 22px; }
   .pbottom .caption p { font-size: 13.5px; }
+  .ptour { gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .pseg { width: 100%; }
+  #patchView.touring .plabel.part:not(.sel) { display: none; }
+  .pctl button { min-width: 36px; height: 36px; padding: 0 10px; }
+  .pctl #pPlay { min-width: 70px; }
 }
 
 @media (max-width: 900px) {
@@ -382,7 +397,8 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
     <span class="k">View</span>
     <div class="opts" id="pView" role="group" aria-label="View"></div>
     <div class="pstats" id="pStats"></div>
-    <button class="btn primary pcycle" id="pCycle" type="button" aria-pressed="false">Run a read cycle</button>
+    <button class="btn primary ptourbtn" id="pTourBtn" type="button" aria-pressed="false">Take the guided tour ▶</button>
+    <button class="btn pcycle" id="pCycle" type="button" aria-pressed="false">Run a read cycle</button>
     <div class="pread" id="pRead" hidden aria-live="polite"><span class="ch" id="pCh"></span><span class="nm" id="pChName"></span><span class="bits" id="pBits"></span><svg id="pSig" viewBox="0 0 120 36" aria-hidden="true"></svg></div>
     <div class="legend" id="pLegend" role="group" aria-label="Needle types"></div>
   </section>
@@ -391,6 +407,11 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
       <div class="chips"><span class="chip lvl" id="pChip"></span></div>
       <h1 id="pHead"></h1>
       <p id="pLine"></p>
+      <div class="ptour" id="pTour" hidden>
+        <div class="pseg" id="pSeg" aria-hidden="true"></div>
+        <div class="pctl"><button id="pPrev" type="button" aria-label="Previous step">‹</button><button id="pPlay" type="button">Pause</button><button id="pNext" type="button" aria-label="Next step">›</button><button id="pClose" type="button" aria-label="End the tour">✕</button></div>
+      </div>
+      <button class="btn primary ptourcta" id="pTourCta" type="button" hidden>See Badri catch Fatima →</button>
     </div>
     <p class="pfine">Concept model built from the team's research. Not a validated device.</p>
   </div>
@@ -841,22 +862,21 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
       summaryTitle: 'Caught before his blood pressure crashed'
     },
     {
-      id: 'checkup', tab: 'Check-up: "sore throat"', mode: 'case', seed: 2.7, startClock: 9 * 60,
-      title: 'Routine check-up, "just a sore throat"',
-      blurb: 'A diabetes check-up. She mentions a sore throat. Her chest is infected.',
-      patient: { name: 'Fatima A.', age: 78, sex: 'F', setting: 'Outpatient clinic', settingShort: 'clinic', complaint: 'Routine diabetes check-up; mentions a sore throat' },
+      id: 'checkup', tab: 'After childbirth', mode: 'case', seed: 2.7, startClock: 9 * 60,
+      title: 'Two months after giving birth',
+      blurb: 'Chills and fast breathing, two months after giving birth. One warning sign at triage: not enough for an alarm.',
+      patient: { name: 'Fatima (name changed)', age: 34, sex: 'F', setting: 'Emergency department', settingShort: 'ER', complaint: 'Chills since last night; gave birth two months ago' },
       infection: true, nurseAck: 2, doctorAck: null, ivFails: 0,
-      lines: { arrive: 'Just my check-up. I have a bit of a sore throat.', nurseAtBed: 'Your patch flagged a change. I\'m calling the doctor.' },
+      lines: { arrive: 'I\'ve had chills since last night. My baby is two months old.', nurseAtBed: 'Your patch flagged a change. I\'m calling the doctor.' },
       keys: [
-        { t: 0, hr: 98, rr: 22, temp: 37.8, sbp: 124, dbp: 74, spo2: 94, gcs: 15, lac: 1.7 },
-        { t: 30, hr: 100, rr: 22.5, temp: 37.9, sbp: 120, dbp: 72, spo2: 93, gcs: 15, lac: 1.9 },
-        { t: 50, hr: 104, rr: 23, temp: 38.1, sbp: 116, dbp: 70, spo2: 92, gcs: 14, lac: 2.2 },
-        { t: 90, hr: 108, rr: 24, temp: 38.3, sbp: 110, dbp: 66, spo2: 91, gcs: 14, lac: 2.6 },
-        { t: 200, hr: 112, rr: 26, temp: 38.4, sbp: 104, dbp: 62, spo2: 90, gcs: 13, lac: 3.1 }
+        { t: 0, hr: 106, rr: 22, temp: 38.3, sbp: 108, dbp: 66, spo2: 97, gcs: 15, lac: 1.7 },
+        { t: 30, hr: 110, rr: 22.5, temp: 38.5, sbp: 106, dbp: 64, spo2: 97, gcs: 15, lac: 1.9 },
+        { t: 50, hr: 116, rr: 23, temp: 38.6, sbp: 103, dbp: 62, spo2: 96, gcs: 15, lac: 2.2 },
+        { t: 90, hr: 122, rr: 25, temp: 38.8, sbp: 100, dbp: 60, spo2: 95, gcs: 15, lac: 2.7 },
+        { t: 200, hr: 130, rr: 27, temp: 38.9, sbp: 92, dbp: 54, spo2: 94, gcs: 14, lac: 3.4 }
       ],
-      labs: { plt: 165, bili: 0.9, creat: 1.4, pf: 280, vent: false },
-      withoutBadri: { label: 'Without Badri', value: 'Sent home', note: 'one borderline reading at a routine check-up' },
-      summaryTitle: 'A "sore throat" that was sepsis, caught at a check-up'
+      labs: { plt: 140, bili: 1.0, creat: 1.3, pf: 340, vent: false },
+      summaryTitle: 'Caught before her blood pressure fell'
     },
     {
       id: 'healthy', tab: 'Check-up: healthy', mode: 'case', seed: 4.1, startClock: 11 * 60,
@@ -2216,8 +2236,8 @@ const PatchView = (() => {
     mux: { name: 'Switch · TMUX1108', h: 'Switch · TI TMUX1108', p: () => (design === 'robust' ? 'Two 8-to-1 switches: ten sensor needles do not fit on one. ' : 'An 8-to-1 switch. ') + 'It connects one sensor needle at a time to the potentiostat, picked by address pins A0, A1 and A2. The enable pin must be held high: in TI’s datasheet, low turns every switch off' + (design === 'robust' ? ', which is how the firmware picks which of the two switches is live.' : '.') },
     afe: { name: 'Potentiostat', h: 'Potentiostat front end', p: () => 'Holds the selected needle at its working voltage against the reference needles and turns its nanoamp current into a voltage. It must also sweep voltages and measure impedance for PCT, IL-6, presepsin and CRP, so it is an AD5940 or ADuCM355-class chip; a fixed-voltage chip such as the LMP91000 only suits lactate.' },
     mcu: { name: 'Microcontroller + Bluetooth', h: 'Microcontroller + Bluetooth · Seeed XIAO nRF52840', p: () => 'Runs the read cycle: set the address pins, wait 30 ms for the switch to settle, then read. Each reading goes over Bluetooth Low Energy to the phone or ward dashboard, where Badri re-scores the patient.' },
-    battery: { name: 'Battery', h: 'Battery · reusable reader', p: () => 'A coin cell or a rechargeable cell.' },
-    top: { name: 'Reader cover', h: 'Reader cover · reusable', p: () => 'Sealed, splash-proof housing that survives disinfectant wipes. Built to medical electrical safety rules (IEC 60601-1, including its home-use part, since it goes home with the patient). The light blinks with each reading.' }
+    battery: { name: 'Battery', h: 'Battery · reusable reader', p: () => 'A small rechargeable cell. It stays in the reusable reader, so no battery is thrown away with each patch.' },
+    top: { name: 'Reader cover', h: 'Reader cover · reusable', p: () => 'A sealed, splash-proof white shell seated in the red tray, so it survives disinfectant wipes between patients. Built to medical electrical safety rules (IEC 60601-1, including its home-use part, since it goes home with the patient). The red light blinks with each reading.' }
   };
   const EXPLODE = { adhesive: 1.4, array: 3.6, flex: 6.2, base: 11, analog: 16, mcu: 21.5, battery: 27.5, top: 40 };
   const READER = ['base', 'analog', 'mcu', 'battery', 'top'];
@@ -2232,6 +2252,28 @@ const PatchView = (() => {
     amp: 'M2,30 L34,30 C42,30 44,9 56,8 L118,7', peak: 'M2,30 L38,30 C52,30 52,5 60,5 C68,5 68,30 82,30 L118,30',
     cap: 'M2,7 C30,8 52,24 118,28', imp: 'M2,30 C40,29 60,12 118,8', base: 'M2,19 L118,19'
   };
+
+  // guided tour of the whole device: each step sets a view, a highlighted part and a camera, with a short line of narration
+  const TOUR = [
+    { mode: 'whole', h: 'One wearable, two parts.', p: 'A sterile microneedle patch that is thrown away after use, and a reusable reader that clicks on top and holds every chip.' },
+    { mode: 'whole', sel: 'top', focus: 'top', h: 'The reader cover', p: 'A sealed, splash-proof shell, wiped with hospital disinfectant between patients. The red light blinks with each reading.' },
+    { mode: 'exploded', h: 'Open it up.', p: 'Thrown away: the adhesive, the needle array and its backing. Kept: the reader base, sensor board, microcontroller, battery and cover.' },
+    { mode: 'exploded', sel: 'battery', focus: 'battery', h: 'Battery', p: 'A small rechargeable cell. It lives in the reader, so no battery is thrown away with each patch.' },
+    { mode: 'exploded', sel: 'mcu', focus: 'mcu', h: 'Microcontroller + Bluetooth', p: 'A Seeed XIAO nRF52840 runs the read cycle every 15 minutes and sends each reading over Bluetooth Low Energy to the ward dashboard.' },
+    { mode: 'exploded', sel: 'afe', focus: 'analog', h: 'Potentiostat', p: 'Holds each needle at its working voltage and turns its tiny current into a number. Sweeps and impedance for the protein markers need an AD5940-class chip.' },
+    { mode: 'exploded', sel: 'mux', focus: 'analog', h: 'Switch', p: () => (design === 'robust' ? 'Two TI TMUX1108 switches connect' : 'A TI TMUX1108 switch connects') + ' one needle at a time to the potentiostat, picked by three address pins.' },
+    { mode: 'exploded', sel: 'base', focus: 'base', h: 'Reader base', p: 'Spring pins meet the patch’s contact pads when the reader clicks on. The reader never touches the needle site.' },
+    { mode: 'exploded', sel: 'flex', focus: 'flex', h: 'Flexible backing', p: 'A thin circuit with no chips on it, so the thrown-away part stays cheap. Gold traces carry each needle’s signal to the pads.' },
+    { mode: 'exploded', sel: 'array', focus: 'array', h: 'Needle array', p: () => `${LAYOUT[design].n} needles, 0.7 mm long: ${design === 'robust' ? 'ten sensor needles in pairs' : 'five sensor needles'} for lactate, IL-6, presepsin, PCT and CRP, plus shared reference and counter needles and anchors. Sterile, single use.` },
+    { mode: 'exploded', sel: 'adhesive', focus: 'adhesive', h: 'Adhesive', p: 'Skin-safe medical adhesive holds the patch on, and goes in the bin with the needles.' },
+    { mode: 'skin', h: 'Into the skin', p: 'The tips stop in the dermis, in the fluid around the cells, above the larger blood vessels.' },
+    { mode: 'skin', cycle: true, dur: 10.5, h: 'One reading', p: 'The switch steps through the sensor needles one by one, waits 30 ms on each, and the potentiostat reads them.' },
+    { mode: 'whole', h: 'To the dashboard', p: 'Every 15 minutes the readings go over Bluetooth. Badri re-scores the patient and, if the score crosses the line, alerts the nurse, then the ER doctor, then the ICU, until someone acts.' },
+    { mode: 'whole', h: 'And home', p: 'The same patch goes home with the patient. CRP rises slowly, so it shows whether they are recovering or relapsing.', last: true }
+  ];
+  const tour = { on: false, i: 0, t: 0, paused: false };
+  const tourText = (st) => (typeof st.p === 'function' ? st.p() : st.p);
+  const tourDur = (st) => st.dur || Math.min(11, Math.max(6, 2.5 + tourText(st).split(' ').length * 0.27));
 
   let R = null, on = false, design = 'lean', mode = 'whole', selected = null, last = performance.now();
   const cyc = { on: false, i: -1, at: 0, seq: [] };
@@ -2280,6 +2322,7 @@ const PatchView = (() => {
     renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
     renderer.domElement.addEventListener('pointerup', (e) => {
       if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return;
+      if (tour.on) tourPause(true);
       const r = renderer.domElement.getBoundingClientRect();
       R.ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       R.ray.setFromCamera(R.ptr, camera);
@@ -2350,56 +2393,75 @@ const PatchView = (() => {
     R.shadow.rotation.x = -Math.PI / 2; R.shadow.renderOrder = 5;
   }
 
-  // the reader follows the team's logo: a red rounded-square pod on a deeper-red base
+  // the reader follows the team's design: a white rounded cover seated in a deep-red tray, logo and status light on top
   function rrShape(w, d, r) {
     const sh = new THREE.Shape(), x = -w / 2, y = -d / 2;
     sh.moveTo(x + r, y); sh.lineTo(x + w - r, y); sh.quadraticCurveTo(x + w, y, x + w, y + r); sh.lineTo(x + w, y + d - r); sh.quadraticCurveTo(x + w, y + d, x + w - r, y + d);
     sh.lineTo(x + r, y + d); sh.quadraticCurveTo(x, y + d, x, y + d - r); sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y); return sh;
   }
+  const BOARD_TOP = 1.7;
   function buildReader() {
-    const RED = 0xB51C2A, DEEP = 0x6E0A1E;
-    // base with spring pins
+    const MAROON = 0x5C1220, WHITE = 0xEDEBE8;
+    // base: a deep-red tray with spring pins underneath
     const base = part('base'); base.userData.y0 = 0.45;
-    pickable(mesh(new RoundedBoxGeometry(33, 1.6, 33, 4, 0.75), std(DEEP, { roughness: 0.45 }), 0, 0.8, 0, base), 'base');
+    const wall = rrShape(33, 33, 7.5); const inner = rrShape(30.4, 30.4, 6.2); wall.holes.push(inner);
+    const wg = new THREE.ExtrudeGeometry(wall, { depth: 4.2, bevelEnabled: true, bevelThickness: 0.35, bevelSize: 0.35, bevelSegments: 4, curveSegments: 48 }); wg.rotateX(-Math.PI / 2);
+    const trayM = std(MAROON, { roughness: 0.4 });
+    pickable(mesh(wg, trayM, 0, 0, 0, base), 'base');
+    const floor = new THREE.ExtrudeGeometry(rrShape(31, 31, 6.6), { depth: 0.9, bevelEnabled: false, curveSegments: 48 }); floor.rotateX(-Math.PI / 2);
+    pickable(mesh(floor, std(0x45101A, { roughness: 0.5 }), 0, 0, 0, base), 'base');
     R.pins = new THREE.Group(); base.add(R.pins);
-    // sensor board: switch(es) + potentiostat
+    // sensor board: a dark circuit board with gold traces, carrying the switch(es) and the potentiostat
     const an = part('analog'); an.userData.y0 = 0.45;
-    pickable(mesh(new RoundedBoxGeometry(27, 0.8, 27, 2, 0.35), std(0x17434F, { roughness: 0.5 }), 0, 2.0, 0, an), 'analog');
+    const pcb = ctex(512, 512, (c, w, h) => {
+      c.fillStyle = '#1d2023'; c.fillRect(0, 0, w, h);
+      c.strokeStyle = 'rgba(201,164,90,0.75)'; c.lineWidth = 2.2; c.lineCap = 'round';
+      for (let i = 0; i < 70; i++) { let x = Math.random() * w, y = Math.random() * h; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 3; k++) { if (Math.random() < 0.5) x += (Math.random() - 0.5) * 180; else y += (Math.random() - 0.5) * 180; c.lineTo(x, y); } c.stroke(); c.fillStyle = 'rgba(214,178,96,0.9)'; c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fill(); }
+      c.fillStyle = 'rgba(214,178,96,0.85)'; for (let i = 0; i < 140; i++) c.fillRect(Math.random() * w, Math.random() * h, 5, 3);
+    });
+    pickable(mesh(new RoundedBoxGeometry(29, 0.8, 29, 2, 0.35), std(0xffffff, { map: pcb, roughness: 0.55 }), 0, BOARD_TOP - 0.4, 0, an), 'analog');
     const chipTex = (t) => ctex(256, 200, (c, w, h) => { c.fillStyle = '#1b1c1e'; c.fillRect(0, 0, w, h); c.fillStyle = '#c9c9c9'; c.font = '600 40px Inter, sans-serif'; c.textAlign = 'center'; c.fillText(t, w / 2, h / 2 + 14); c.beginPath(); c.arc(26, 26, 9, 0, 7); c.fill(); });
     const chip = (w, h, d, x, z, text, name, parent) => {
       const g = new THREE.Group(); parent.add(g);
       const side = std(0x1b1c1e, { roughness: 0.6 }), top = std(0xffffff, { map: chipTex(text), roughness: 0.6 });
-      const m = mesh(new THREE.BoxGeometry(w, h, d), [side, side, top, side, side, side], x, 2.4 + h / 2, z, g);
+      const m = mesh(new THREE.BoxGeometry(w, h, d), [side, side, top, side, side, side], x, BOARD_TOP + h / 2, z, g);
       m.userData.part = name; R.pick.push(m);
       const pinM = std(0xC9CCD1, { metalness: 0.8, roughness: 0.3 });
-      for (let i = 0; i < 8; i++) for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.22, 0.12, 0.6), pinM, x - w / 2 + 0.5 + i * (w - 1) / 7, 2.46, z + s * (d / 2 + 0.25), g);
+      for (let i = 0; i < 8; i++) for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.22, 0.12, 0.6), pinM, x - w / 2 + 0.5 + i * (w - 1) / 7, BOARD_TOP + 0.06, z + s * (d / 2 + 0.25), g);
       g.userData.chip = m; return g;
     };
     R.muxChip = chip(5.0, 1.0, 4.4, -4.6, 3.2, 'TMUX1108', 'mux', an).userData.chip;
     R.mux2 = chip(5.0, 1.0, 4.4, -4.6, -3.4, 'TMUX1108', 'mux', an); R.mux2.visible = false;
     R.afeChip = chip(4.0, 0.8, 4.0, 4.2, 3.2, 'AFE', 'afe', an).userData.chip;
-    for (const [x, z, c] of [[-0.6, -4, 0xB89A6A], [1.4, -5, 0x6b6b6b], [6.5, -2.4, 0x6b6b6b], [0.3, 7.5, 0xB89A6A], [-9.5, 8, 0x6b6b6b], [9.6, 8.6, 0xB89A6A], [9.4, -9, 0x6b6b6b]]) mesh(new THREE.BoxGeometry(1.0, 0.5, 0.5), std(c), x, 2.65, z, an);
-    const muxL = label('Switch · TMUX1108', 'part', () => select({ part: 'mux' })); muxL.position.set(-4.6, 4.6, 3.2); an.add(muxL); R.partLabels.push(muxL);
-    const afeL = label('Potentiostat', 'part', () => select({ part: 'afe' })); afeL.position.set(4.2, 4.3, 3.2); an.add(afeL); R.partLabels.push(afeL);
+    const goldC = std(0xD9B25A, { metalness: 0.85, roughness: 0.3 });
+    for (const [x, z, c] of [[-0.6, -4, 0xB89A6A], [1.4, -5, 0x6b6b6b], [6.5, -2.4, 0x6b6b6b], [0.3, 7.5, 0xB89A6A], [-9.5, 8, 0x6b6b6b], [9.6, 8.6, 0xB89A6A], [9.4, -9, 0x6b6b6b], [-10.2, -9.5, 0xB89A6A], [11, 1.5, 0x6b6b6b]]) {
+      mesh(new THREE.BoxGeometry(1.0, 0.5, 0.5), std(c), x, BOARD_TOP + 0.25, z, an);
+      for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.22, 0.52, 0.52), goldC, x + s * 0.5, BOARD_TOP + 0.25, z, an);
+    }
+    const muxL = label('Switch · TMUX1108', 'part', () => select({ part: 'mux' })); muxL.position.set(-4.6, 4.0, 3.2); an.add(muxL); R.partLabels.push(muxL);
+    const afeL = label('Potentiostat', 'part', () => select({ part: 'afe' })); afeL.position.set(4.2, 3.7, 3.2); an.add(afeL); R.partLabels.push(afeL);
     // microcontroller + Bluetooth module (XIAO-sized: 21 x 17.8 mm)
     const mcu = part('mcu'); mcu.userData.y0 = 0.45;
-    pickable(mesh(new THREE.BoxGeometry(17.8, 1.0, 21), std(0x1F2733, { roughness: 0.5 }), 0, 3.7, 0, mcu), 'mcu');
+    pickable(mesh(new THREE.BoxGeometry(17.8, 1.0, 21), std(0x1F3A5F, { roughness: 0.5 }), 0, 3.4, 0, mcu), 'mcu');
     const can = std(0xD3D6DA, { metalness: 0.85, roughness: 0.28 });
-    pickable(mesh(new THREE.BoxGeometry(10, 1.4, 10), can, 0, 4.9, -2.5, mcu), 'mcu');
-    pickable(mesh(new RoundedBoxGeometry(9, 2.6, 7.4, 2, 0.6), can, 0, 5.5, 6.8, mcu), 'mcu');
-    const gold = std(0xD9B25A, { metalness: 0.9, roughness: 0.3 });
-    for (let i = 0; i < 7; i++) for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.9, 1.04, 1.4), gold, s * 8.6, 3.7, -7.6 + i * 2.54, mcu);
-    // battery
+    pickable(mesh(new THREE.BoxGeometry(10, 1.4, 10), can, 0, 4.6, -2.5, mcu), 'mcu');
+    pickable(mesh(new RoundedBoxGeometry(9, 2.6, 7.4, 2, 0.6), can, 0, 5.2, 6.8, mcu), 'mcu');
+    for (let i = 0; i < 7; i++) for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.9, 1.04, 1.4), goldC, s * 8.6, 3.4, -7.6 + i * 2.54, mcu);
+    // battery: a small rechargeable cell with gold ends
     const bat = part('battery'); bat.userData.y0 = 0.45;
-    pickable(mesh(new THREE.CylinderGeometry(10, 10, 3.2, 96), std(0xC4C8CC, { metalness: 0.9, roughness: 0.25 }), 0, 8.25, 0, bat), 'battery');
-    const plus = ctex(256, 256, (c, w, h) => { c.fillStyle = '#c4c8cc'; c.fillRect(0, 0, w, h); c.strokeStyle = '#8d9196'; c.lineWidth = 14; c.beginPath(); c.moveTo(128, 70); c.lineTo(128, 186); c.moveTo(70, 128); c.lineTo(186, 128); c.stroke(); });
-    const cap = mesh(new THREE.CircleGeometry(9.98, 96), std(0xffffff, { map: plus, metalness: 0.7, roughness: 0.3 }), 0, 9.86, 0, bat); cap.rotation.x = -Math.PI / 2;
-    // cover: a soft red rounded square, with the white highlight arc from the logo
+    pickable(mesh(new RoundedBoxGeometry(18, 3.0, 8, 3, 1.1), std(0xE9E8E4, { metalness: 0.35, roughness: 0.32 }), 0, 6.0, 0, bat), 'battery');
+    for (const sx of [-1, 1]) pickable(mesh(new RoundedBoxGeometry(1.2, 3.1, 8.1, 2, 0.4), goldC, sx * 9.3, 6.0, 0, bat), 'battery');
+    // cover: a soft white rounded square seated in the tray, with the logo and a red status light
     const top = part('top'); top.userData.y0 = 0.45;
-    pickable(mesh(new RoundedBoxGeometry(30, 10.6, 30, 8, 3.2), std(RED, { roughness: 0.5 }), 0, 6.6, 0, top), 'top');
-    const arc = ctex(512, 512, (c) => { c.clearRect(0, 0, 512, 512); c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineWidth = 26; c.lineCap = 'round'; c.beginPath(); c.moveTo(150, 120); c.quadraticCurveTo(300, 110, 360, 230); c.stroke(); });
-    const hi = mesh(new THREE.PlaneGeometry(22, 22), new THREE.MeshStandardMaterial({ map: arc, transparent: true, roughness: 0.4, depthWrite: false }), 0, 11.91, 0, top); hi.rotation.x = -Math.PI / 2;
-    R.led = mesh(new THREE.SphereGeometry(0.5, 20, 14), new THREE.MeshStandardMaterial({ color: 0x8FD3E3, emissive: 0x8FD3E3, emissiveIntensity: 0.3 }), 9.5, 11.75, 9.5, top);
+    const coverM = std(WHITE, { roughness: 0.42 });
+    pickable(mesh(new RoundedBoxGeometry(31.6, 8.4, 31.6, 10, 3.9), coverM, 0, 8.0, 0, top), 'top');
+    const lip = new THREE.ExtrudeGeometry(rrShape(30.2, 30.2, 6.1), { depth: 1.6, bevelEnabled: false, curveSegments: 48 }); lip.rotateX(-Math.PI / 2);
+    pickable(mesh(lip, coverM, 0, 3.3, 0, top), 'top');
+    const logo = new THREE.TextureLoader().load('assets/badri-mark.png', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; });
+    const lm = mesh(new THREE.PlaneGeometry(8.4, 8.4), new THREE.MeshStandardMaterial({ map: logo, transparent: true, roughness: 0.45, depthWrite: false }), 1.2, 12.215, -3.0, top); lm.rotation.x = -Math.PI / 2;
+    const ledG = new THREE.CapsuleGeometry(0.42, 2.3, 4, 14); ledG.rotateZ(Math.PI / 2);
+    R.led = mesh(ledG, new THREE.MeshStandardMaterial({ color: 0xC0242C, emissive: 0xE0303A, emissiveIntensity: 0.3, roughness: 0.35 }), -3.4, 12.08, 6.4, top);
+    R.led.scale.y = 0.55;
   }
 
   function clearGroup(g) { for (const c of [...g.children]) { if (c.isCSS2DObject) continue; g.remove(c); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } }
@@ -2459,19 +2521,19 @@ const PatchView = (() => {
       }
     });
     // adhesive ring with a window for the backing
-    const ring = rrShape(40, 40, 9);
+    const ring = rrShape(46, 46, 11);
     const hw = (W + 1.6) / 2, hd = (Df + 0.6) / 2, cz = -fz;
     const hole = new THREE.Path(); hole.moveTo(-hw, cz - hd); hole.lineTo(hw, cz - hd); hole.lineTo(hw, cz + hd); hole.lineTo(-hw, cz + hd); hole.lineTo(-hw, cz - hd); ring.holes.push(hole);
-    const ag = new THREE.ExtrudeGeometry(ring, { depth: 0.25, bevelEnabled: false, curveSegments: 72 }); ag.rotateX(-Math.PI / 2);
-    const fabric = ctex(256, 256, (c, w, h) => { c.fillStyle = '#f6f3ee'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(120,110,100,0.08)'; for (let i = 0; i < w; i += 4) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.stroke(); c.beginPath(); c.moveTo(0, i); c.lineTo(w, i); c.stroke(); } });
-    fabric.wrapS = fabric.wrapT = THREE.RepeatWrapping; fabric.repeat.set(0.08, 0.08);
+    const ag = new THREE.ExtrudeGeometry(ring, { depth: 0.45, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.5, bevelSegments: 3, curveSegments: 72 }); ag.rotateX(-Math.PI / 2);
+    const fabric = ctex(256, 256, (c, w, h) => { c.fillStyle = '#E4D8C4'; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(128,108,84,0.32)'; for (let y = 8; y < h; y += 16) for (let x = (y / 16) % 2 ? 8 : 0; x < w; x += 16) { c.beginPath(); c.arc(x, y, 2.1, 0, 7); c.fill(); } });
+    fabric.wrapS = fabric.wrapT = THREE.RepeatWrapping; fabric.repeat.set(0.1, 0.1);
     const am = mesh(ag, std(0xffffff, { map: fabric, roughness: 0.95, clippingPlanes: cp }), 0, 0, 0, adh);
     am.userData.design = true; pickable(am, 'adhesive', true);
     // spring pins under the reader base, lined up with the pads
     clearGroup(R.pins);
     for (const [x, z] of R.padPos) mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.9, 12), std(0xD9B25A, { metalness: 0.9, roughness: 0.3 }), x, 0.1, z, R.pins);
     // labels sit to the right of each part
-    const lp = { array: [W / 2 + 1.2, 0.2, 0], flex: [W / 2 + 1.2, 0.45, fz], adhesive: [20.5, 0.15, 0], base: [17.2, 0.8, 0], analog: [14.2, 2.0, 0], mcu: [9.5, 3.7, 0], battery: [10.6, 8.25, 0], top: [15.6, 6.6, 0] };
+    const lp = { array: [W / 2 + 1.2, 0.2, 0], flex: [W / 2 + 1.2, 0.45, fz], adhesive: [23.5, 0.25, 0], base: [17.6, 2.1, 0], analog: [15.2, 1.3, 0], mcu: [9.5, 3.4, 0], battery: [10.4, 6.0, 0], top: [16.4, 8.0, 0] };
     for (const [n, v] of Object.entries(lp)) if (R.g[n].userData.label) R.g[n].userData.label.position.set(...v);
     // skin-view labels
     const z = R.frontZ + 0.2, rx = W / 2 + 0.75;
@@ -2505,6 +2567,23 @@ const PatchView = (() => {
     const pr = presets()[mode], t = new THREE.Vector3(...pr.t), p = new THREE.Vector3(...pr.p);
     if (instant || reduceMotion) { R.ctl.target.copy(t); R.camera.position.copy(p); anim.fov = pr.fov; setFov(); anim.cam = null; R.ctl.update(); return; }
     anim.cam = { t0: R.ctl.target.clone(), p0: R.camera.position.clone(), f0: anim.fov, t, p, f: pr.fov, start: performance.now(), dur: 1100 };
+  }
+  // a closer shot of one part (tour), from the same side as the exploded view
+  const PART_Y = { adhesive: 0.25, array: 0.1, flex: 0.4, base: 2.2, analog: 1.6, mcu: 4.0, battery: 6.0, top: 8.0 };
+  function partShot(name) {
+    const desk = R.hostW > 900, phone = R.hostW < 560, fov = fovFor(mode);
+    const fit = (w, h) => { const t = Math.tan(THREE.MathUtils.degToRad(fov / 2)); return Math.max(h / 2 / t, w / (2 * t * R.camera.aspect)); };
+    if (name === 'top' && mode !== 'exploded') {
+      const tg = [0, 6, 0], d = new THREE.Vector3(30, 44, 40).normalize().multiplyScalar(fit(desk ? 82 : 54, 46));
+      return { t: tg, p: [tg[0] + d.x, tg[1] + d.y, tg[2] + d.z], fov };
+    }
+    const off = EXPLODE[name] || 0, y = (R.g[name] ? R.g[name].userData.y0 : 0) + off + (PART_Y[name] || 0);
+    const tg = [desk ? 3 : 0, y - (phone ? 3 : 6), 0], d = new THREE.Vector3(95, 34, 110).normalize().multiplyScalar(fit(desk ? 88 : phone ? 50 : 62, phone ? 46 : 40));
+    return { t: tg, p: [tg[0] + d.x, tg[1] + d.y, tg[2] + d.z], fov };
+  }
+  function flyShot(pr) {
+    if (reduceMotion) { R.ctl.target.set(...pr.t); R.camera.position.set(...pr.p); anim.fov = pr.fov; setFov(); anim.cam = null; R.ctl.update(); return; }
+    anim.cam = { t0: R.ctl.target.clone(), p0: R.camera.position.clone(), f0: anim.fov, t: new THREE.Vector3(...pr.t), p: new THREE.Vector3(...pr.p), f: pr.fov, start: performance.now(), dur: 1100 };
   }
   function setFov() { if (Math.abs(R.camera.fov - anim.fov) > 1e-3) { R.camera.fov = anim.fov; R.camera.updateProjectionMatrix(); } }
   function applyMode(instant) {
@@ -2577,12 +2656,48 @@ const PatchView = (() => {
     $('pChName').textContent = (design === 'robust' ? `Switch ${ch < 8 ? 1 : 2} · ` : '') + info.name;
     $('pBits').innerHTML = ['A2', 'A1', 'A0'].map((n, i) => `<span class="bit" data-on="${b[i]}"><small>${n}</small>${b[i]}</span>`).join('');
     $('pSig').innerHTML = `<path d="${SIG[info.sig]}" fill="none" stroke="${info.color ? hex(info.color) : 'currentColor'}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
-    setCaption(`${chName(ch)} · A2 A1 A0 = ${b.join(' ')}`, `Reading ${info.name.replace(' · ', ', ')}`, `${info.line} The switch settles for 30 ms before each reading.`);
+    if (!tour.on) setCaption(`${chName(ch)} · A2 A1 A0 = ${b.join(' ')}`, `Reading ${info.name.replace(' · ', ', ')}`, `${info.line} The switch settles for 30 ms before each reading.`);
+  }
+
+  /* ---------- guided tour ---------- */
+  function tourGo(i) {
+    tour.i = Math.max(0, Math.min(TOUR.length - 1, i)); tour.t = 0;
+    const st = TOUR[tour.i];
+    stopCycle();
+    if (st.mode !== mode) { mode = st.mode; applyMode(false); }
+    select(st.sel ? { part: st.sel } : null);
+    if (st.cycle) startCycle();
+    if (st.focus) flyShot(partShot(st.focus)); else flyCam(false);
+    tourUI(); caption();
+  }
+  function tourStart() { tour.on = true; tour.paused = false; $('pTour').hidden = false; view.classList.add('touring'); tourGo(0); }
+  function tourEnd() { if (!tour.on) return; tour.on = false; $('pTour').hidden = true; view.classList.remove('touring'); $('pTourCta').hidden = true; stopCycle(); select(null); tourUI(); caption(); }
+  function tourPause(v) { if (!tour.on) return; tour.paused = v === undefined ? !tour.paused : v; if (!tour.paused && TOUR[tour.i].last && tour.t >= tourDur(TOUR[tour.i])) tourGo(0); tourUI(); }
+  function tourUI() {
+    $('pTourBtn').textContent = tour.on ? 'End the tour' : 'Take the guided tour ▶';
+    $('pTourBtn').setAttribute('aria-pressed', String(tour.on));
+    if (!tour.on) return;
+    const segs = $('pSeg');
+    if (segs.children.length !== TOUR.length) segs.innerHTML = TOUR.map(() => '<i><b></b></i>').join('');
+    [...segs.children].forEach((el, k) => { el.firstChild.style.width = k < tour.i ? '100%' : k > tour.i ? '0%' : `${Math.min(100, (tour.t / tourDur(TOUR[tour.i])) * 100)}%`; });
+    const done = TOUR[tour.i].last && tour.t >= tourDur(TOUR[tour.i]);
+    $('pPlay').textContent = done ? 'Replay' : tour.paused ? 'Play' : 'Pause';
+    $('pPrev').disabled = tour.i === 0; $('pNext').disabled = tour.i === TOUR.length - 1;
+    $('pTourCta').hidden = !TOUR[tour.i].last;
+  }
+  function tourTick(dt) {
+    if (!tour.on || tour.paused) return;
+    const st = TOUR[tour.i], d = tourDur(st);
+    tour.t += dt;
+    if (tour.t >= d) { if (st.last) { tour.t = d; tour.paused = true; } else { tourGo(tour.i + 1); return; } }
+    const seg = $('pSeg').children[tour.i]; if (seg) seg.firstChild.style.width = `${Math.min(100, (tour.t / d) * 100)}%`;
+    if (tour.paused) tourUI();
   }
 
   /* ---------- words ---------- */
   function setCaption(chip, h, p) { $('pChip').textContent = chip; $('pHead').textContent = h; $('pLine').textContent = p; }
   function caption() {
+    if (tour.on) { const st = TOUR[tour.i]; setCaption(`Guided tour · ${tour.i + 1} of ${TOUR.length}`, st.h, tourText(st)); return; }
     if (cyc.on) return;
     if (selected && selected.kind) { const K = KINDS[selected.kind]; setCaption(K.we ? `${K.how}` : K.how, K.h, K.p + (K.we ? ` Read on ${chName(WE.indexOf(selected.kind))}${design === 'robust' ? ` and ${chName(WE.indexOf(selected.kind) + 5)}` : ''}.` : '')); return; }
     if (selected && selected.part) { const P = PARTS[selected.part]; setCaption(P.h.includes('disposable') ? 'Disposable' : 'Reusable reader', P.h, P.p()); return; }
@@ -2623,6 +2738,7 @@ const PatchView = (() => {
       for (let i = 0; i < A.length; i += 3) { A[i] += Math.sin(tt + i) * 0.004; A[i + 1] += Math.cos(tt * 1.3 + i * 0.7) * 0.0015; if (A[i + 1] > -0.13) A[i + 1] = -1.9; if (A[i + 1] < -1.95) A[i + 1] = -0.14; }
       pa.needsUpdate = true;
     }
+    tourTick(dt);
     // read cycle
     if (cyc.on) { cyc.at -= dt; if (cyc.at <= 0) { stepCycle(); cyc.at = 1.5; } }
     R.led.material.emissiveIntensity += ((cyc.on ? 0.6 : 0.3) - R.led.material.emissiveIntensity) * Math.min(1, dt * 4);
@@ -2635,27 +2751,41 @@ const PatchView = (() => {
     el.innerHTML = '';
     for (const [v, text] of items) { const b = document.createElement('button'); b.type = 'button'; b.dataset.v = v; b.textContent = text; b.setAttribute('aria-pressed', String(v === cur)); b.addEventListener('click', () => onPick(v)); el.appendChild(b); }
   }
-  opts($('pDesign'), [['lean', 'Lean · 11 needles'], ['robust', 'Robust · 16']], design, setDesign);
-  opts($('pView'), Object.entries(VIEWS).map(([k, v]) => [k, v.label]), mode, (m) => { select(null); setMode(m); });
+  opts($('pDesign'), [['lean', 'Lean · 11 needles'], ['robust', 'Robust · 16']], design, (d) => { tourEnd(); setDesign(d); });
+  opts($('pView'), Object.entries(VIEWS).map(([k, v]) => [k, v.label]), mode, (m) => { tourEnd(); select(null); setMode(m); });
   for (const k of LEGEND) {
     const K = KINDS[k], li = document.createElement('button'); li.type = 'button'; li.dataset.k = k; li.setAttribute('aria-pressed', 'false');
     li.innerHTML = `<i style="background:${hex(K.color)}"></i>${K.short}`;
-    li.addEventListener('click', () => select(selected && selected.kind === k ? null : { kind: k }));
+    li.addEventListener('click', () => { tourEnd(); select(selected && selected.kind === k ? null : { kind: k }); });
     $('pLegend').appendChild(li);
   }
-  $('pCycle').addEventListener('click', () => { if (!R) return; cyc.on ? stopCycle() : startCycle(); });
+  $('pCycle').addEventListener('click', () => { if (!R) return; tourEnd(); cyc.on ? stopCycle() : startCycle(); });
+  $('pTourBtn').addEventListener('click', () => { if (!R) return; tour.on ? tourEnd() : tourStart(); });
+  $('pPrev').addEventListener('click', () => { tour.paused = false; tourGo(tour.i - 1); });
+  $('pNext').addEventListener('click', () => { tour.paused = false; tourGo(tour.i + 1); });
+  $('pPlay').addEventListener('click', () => tourPause());
+  $('pClose').addEventListener('click', () => tourEnd());
+  $('pTourCta').addEventListener('click', () => { tourEnd(); location.hash = '#checkup'; });
 
   return {
     show() { if (!R) init(); on = true; view.hidden = false; last = performance.now(); resize(); applyMode(true); },
-    hide() { on = false; view.hidden = true; if (R) stopCycle(); },
+    hide() { on = false; view.hidden = true; if (R) { tourEnd(); stopCycle(); } },
     frame,
     key(e) {
+      if (tour.on) {
+        if (e.key === ' ') { e.preventDefault(); tourPause(); }
+        else if (e.key === 'ArrowRight') { tour.paused = false; tourGo(tour.i + 1); }
+        else if (e.key === 'ArrowLeft') { tour.paused = false; tourGo(tour.i - 1); }
+        else if (e.key === 'Escape') tourEnd();
+        return;
+      }
+      if (e.key === 't' || e.key === 'T') { tourStart(); return; }
       if (e.key === ' ') { e.preventDefault(); cyc.on ? stopCycle() : startCycle(); }
       else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { const ks = Object.keys(VIEWS), i = ks.indexOf(mode); select(null); setMode(ks[(i + (e.key === 'ArrowRight' ? 1 : ks.length - 1)) % ks.length]); }
       else if (e.key === 'Escape') select(null);
     },
-    get state() { return { design, mode, selected, cycling: cyc.on }; },
-    setMode, setDesign, select, startCycle, stopCycle
+    get state() { return { design, mode, selected, cycling: cyc.on, tour: tour.on ? { step: tour.i, of: TOUR.length, paused: tour.paused } : null }; },
+    setMode, setDesign, select, startCycle, stopCycle, tourStart, tourEnd, tourGo
   };
 })();
 
@@ -2667,7 +2797,7 @@ let pendingShot = null, pendingAt = 0;
 
 // simulated minutes per real second, per stage (quiet waiting runs faster)
 const PACE = { arrive: 1.0, triage: 0.9, patch: 0.9, watch: 4.2, alert: 0.9, escalate: 0.9, bundle: 1.2, treated: 4.0, confirmed: 1.0, routine: 1.2, try: 1.5 };
-const TAB = { er: 'ER walk-in', checkup: 'Sore throat', healthy: 'Healthy check-up', try: 'Try it' };
+const TAB = { er: 'ER walk-in', checkup: 'After childbirth', healthy: 'Healthy check-up', try: 'Try it' };
 const LOC = { entrance: 'Arriving', triage: 'Triage', clinic: 'Clinic', ward: 'Ward · bed 2' };
 
 function stageOf(s) {

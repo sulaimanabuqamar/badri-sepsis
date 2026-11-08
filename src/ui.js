@@ -6,7 +6,7 @@ let pendingShot = null, pendingAt = 0;
 
 // simulated minutes per real second, per stage (quiet waiting runs faster)
 const PACE = { arrive: 1.0, triage: 0.9, patch: 0.9, watch: 4.2, alert: 0.9, escalate: 0.9, bundle: 1.2, treated: 4.0, confirmed: 1.0, routine: 1.2, try: 1.5 };
-const TAB = { er: 'ER walk-in', checkup: 'Sore throat', healthy: 'Healthy check-up', try: 'Try it' };
+const TAB = { er: 'ER walk-in', checkup: 'After childbirth', healthy: 'Healthy check-up', try: 'Try it' };
 const LOC = { entrance: 'Arriving', triage: 'Triage', clinic: 'Clinic', ward: 'Ward · bed 2' };
 
 function stageOf(s) {

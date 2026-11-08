@@ -201,7 +201,17 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
 .pcard .opts { margin: 4px 0 8px; }
 .pstats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 10px 0; margin: 2px 0 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .pstats b { display: block; font: 600 17px/1.15 var(--display); letter-spacing: -0.02em; color: var(--head); margin-top: 2px; font-variant-numeric: tabular-nums; }
-.pcard .pcycle { width: 100%; justify-content: center; }
+.pcard .pcycle, .pcard .ptourbtn { width: 100%; justify-content: center; }
+.pcard .ptourbtn { margin-bottom: 6px; }
+.ptour { display: flex; align-items: center; gap: 14px; margin-top: 12px; max-width: 760px; pointer-events: auto; }
+.pseg { display: flex; gap: 4px; flex: none; width: min(420px, 34vw); }
+.pseg i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; display: block; }
+.pseg i b { display: block; height: 100%; width: 0; background: var(--head); }
+.pctl { display: flex; gap: 6px; flex: none; }
+.pctl button { min-width: 40px; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper-solid); color: var(--text); font: 600 15px/1 var(--font); cursor: pointer; }
+.pctl #pPlay { min-width: 86px; background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.pctl button:disabled { opacity: 0.4; cursor: default; }
+.ptourcta { margin-top: 10px; pointer-events: auto; }
 .pread { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; padding: 10px 11px; border-radius: 12px; background: var(--seg); margin-top: 6px; }
 .pread .ch { font: 600 30px/1 var(--display); letter-spacing: -0.04em; color: var(--head); grid-row: span 2; }
 .pread .nm { font-size: 13px; font-weight: 600; }
@@ -244,6 +254,11 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
   .plabel.needle span { font-size: 9.5px; padding: 3px 6px; }
   .pbottom h1 { font-size: 22px; }
   .pbottom .caption p { font-size: 13.5px; }
+  .ptour { gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .pseg { width: 100%; }
+  #patchView.touring .plabel.part:not(.sel) { display: none; }
+  .pctl button { min-width: 36px; height: 36px; padding: 0 10px; }
+  .pctl #pPlay { min-width: 70px; }
 }
 
 @media (max-width: 900px) {
@@ -382,7 +397,8 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
     <span class="k">View</span>
     <div class="opts" id="pView" role="group" aria-label="View"></div>
     <div class="pstats" id="pStats"></div>
-    <button class="btn primary pcycle" id="pCycle" type="button" aria-pressed="false">Run a read cycle</button>
+    <button class="btn primary ptourbtn" id="pTourBtn" type="button" aria-pressed="false">Take the guided tour ▶</button>
+    <button class="btn pcycle" id="pCycle" type="button" aria-pressed="false">Run a read cycle</button>
     <div class="pread" id="pRead" hidden aria-live="polite"><span class="ch" id="pCh"></span><span class="nm" id="pChName"></span><span class="bits" id="pBits"></span><svg id="pSig" viewBox="0 0 120 36" aria-hidden="true"></svg></div>
     <div class="legend" id="pLegend" role="group" aria-label="Needle types"></div>
   </section>
@@ -391,6 +407,11 @@ body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, b
       <div class="chips"><span class="chip lvl" id="pChip"></span></div>
       <h1 id="pHead"></h1>
       <p id="pLine"></p>
+      <div class="ptour" id="pTour" hidden>
+        <div class="pseg" id="pSeg" aria-hidden="true"></div>
+        <div class="pctl"><button id="pPrev" type="button" aria-label="Previous step">‹</button><button id="pPlay" type="button">Pause</button><button id="pNext" type="button" aria-label="Next step">›</button><button id="pClose" type="button" aria-label="End the tour">✕</button></div>
+      </div>
+      <button class="btn primary ptourcta" id="pTourCta" type="button" hidden>See Badri catch Fatima →</button>
     </div>
     <p class="pfine">Concept model built from the team's research. Not a validated device.</p>
   </div>
