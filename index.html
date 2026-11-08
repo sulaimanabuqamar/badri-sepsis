@@ -3169,8 +3169,9 @@ function showEnd() {
 /* ---- camera direction ---- */
 function desiredShot() {
   if (stage === 'end') return 'overview';
+  // Rayan 8 Nov 17:43: once the patched patient gets up, cut straight to her bed (no pan out, no pan back to triage)
+  if (stage === 'patch' && ((people.patient.tween && !(people.patient.tween.delay > 0)) || people.patient.node !== 'triageChair')) return 'bay';
   if (stage !== 'arrive' && longWalk(['patient', 'doctor', 'nurse2', 'anaes'])) return 'overview';
-  if (stage === 'patch' && people.patient.node !== 'triageChair') return 'bay';
   if (stage === 'alert') return caseDef.nurseBusy ? 'bayWide' : 'station';
   if (stage === 'escalate') return 'station';
   return { arrive: 'arrive', triage: 'triage', patch: 'patch', watch: 'bay', bundle: 'bundle', treated: 'treated', confirmed: 'confirmed', routine: 'clinic', try: 'bay' }[stage] || 'overview';
