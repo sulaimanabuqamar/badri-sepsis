@@ -35,6 +35,24 @@ for (const c of E.CASES) {
   b.addEventListener('click', () => loadCase(c.id));
   casesEl.appendChild(b);
 }
+/* ---- the patch tab: a 3D model of the patch itself ---- */
+let patchOn = false;
+const patchTab = document.createElement('button');
+patchTab.type = 'button'; patchTab.setAttribute('role', 'tab'); patchTab.textContent = 'The patch'; patchTab.dataset.id = 'patch';
+patchTab.addEventListener('click', () => showPatch());
+casesEl.appendChild(patchTab);
+function showPatch() {
+  if (patchOn) return;
+  patchOn = true; playing = false; setPlay(); toggleDrawer(false);
+  for (const b of casesEl.children) b.setAttribute('aria-selected', String(b === patchTab));
+  document.body.classList.add('patch');
+  PatchView.show();
+  try { if (location.hash !== '#patch') history.replaceState(null, '', '#patch'); } catch (e) {}
+}
+function hidePatch() {
+  if (!patchOn) return;
+  patchOn = false; document.body.classList.remove('patch'); PatchView.hide();
+}
 
 /* ---- try-it sliders (only the four inputs Badri's alert rule uses) ---- */
 const SLIDERS = [
@@ -150,6 +168,7 @@ function consume() {
   if (added) log.scrollTop = log.scrollHeight;
 }
 function loadCase(id, o = {}) {
+  hidePatch();
   caseDef = E.CASES.find(c => c.id === id) || E.CASES[0];
   for (const b of casesEl.children) b.setAttribute('aria-selected', String(b.dataset.id === caseDef.id));
   sim = new E.Sim(caseDef, { interval });
@@ -216,6 +235,9 @@ $('nextCase').addEventListener('click', nextCase);
 $('ack').addEventListener('click', () => { const r = $('ack').dataset.role; if (r) { sim.acknowledge(r); consume(); updateUI(true); } });
 document.addEventListener('keydown', (e) => {
   if (e.target.closest && e.target.closest('input')) return;
+  if (/^[1-4]$/.test(e.key)) { loadCase(E.CASES[+e.key - 1].id); return; }
+  if (e.key === '5') { showPatch(); return; }
+  if (patchOn) { if (e.key === 'f' || e.key === 'F') toggleFull(); else PatchView.key(e); return; }
   if (e.key === ' ') { e.preventDefault(); togglePlay(); }
   else if (e.key === 'ArrowRight') nextStep();
   else if (e.key === 'ArrowLeft') prevStep();
@@ -224,7 +246,6 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'f' || e.key === 'F') toggleFull();
   else if (e.key === 'c' || e.key === 'C') { userCam = false; currentShot = null; }
   else if (e.key === 'Escape') toggleDrawer(false);
-  else if (/^[1-4]$/.test(e.key)) loadCase(E.CASES[+e.key - 1].id);
 });
 
 /* ---- words on screen ---- */
@@ -241,7 +262,7 @@ function captionFor(k, s) {
     case 'arrive': return { chip: 'Arrival', h: `${first} walks into the ${p.settingShort}.`, p: `“${s.def.lines.arrive}”` };
     case 'triage': return { chip: 'Triage', h: 'The nurse takes the usual vitals.', p: 'Breathing, pulse, blood pressure, temperature, oxygen, alertness. Badri scores them the moment they are in.' };
     case 'patch': return { chip: 'Patch', h: `Close to the line, so ${he} gets a Badri patch.`, p: `${s.triage.why.join(' · ')}. Quick score ${s.triage.q.score} of 3: not an alarm yet, so the patch keeps watching.` };
-    case 'watch': return { chip: 'Watching', h: `Every ${s.interval} minutes, Badri re-scores ${him}.`, p: `The patch reads lactate every ${K.PATCH_SAMPLE} min. Lactate ${lac} mmol/L · quick score ${q ?? '–'} of 3${s.nextScoreAt != null ? ` · next re-score ${s.clock(s.nextScoreAt)}` : ''}.` };
+    case 'watch': return { chip: 'Watching', h: `Every ${s.interval} minutes, Badri re-scores ${him}.`, p: `Each patch reading goes straight into the score. Lactate ${lac} mmol/L · quick score ${q ?? '–'} of 3${s.nextScoreAt != null ? ` · next re-score ${s.clock(s.nextScoreAt)}` : ''}.` };
     case 'alert': return { chip: 'Alert', h: 'Sepsis alert. The ward nurse is notified.', p: s.alert.why.join(' · ') + (s.def.nurseBusy ? '. The nurse is with another patient.' : '.') };
     case 'escalate': return s.esc.mrp.state !== 'idle'
       ? { chip: 'Escalation', h: 'Still no answer: the physician and ICU are paged.', p: `${Math.round(s.t - s.alert.t)} minutes since the alert.` }
@@ -338,7 +359,7 @@ function drawTrend() {
   g += `<circle cx="${X(last.t)}" cy="${Y(last.lac)}" r="4" fill="${last.lac >= 2 ? alert : warm}"/><text x="${X(last.t) + 7}" y="${Y(last.lac) - 6}" fill="${head}" font-size="11" font-weight="600">${last.lac.toFixed(1)}</text>`;
   g += `<text x="${L}" y="${H - 3}" fill="${muted}" font-size="10">${s.clock(t0)}</text><text x="${W - R}" y="${H - 3}" fill="${muted}" font-size="10" text-anchor="end">${s.clock(t1)}</text>`;
   svg.innerHTML = g;
-  $('trendNote').textContent = `A reading every ${K.PATCH_SAMPLE} min; Badri re-scores every ${s.interval} min.`;
+  $('trendNote').textContent = `A patch reading and a re-score every ${s.interval} min.`;
 }
 function showEnd() {
   const s = sim; if (!s.summary) return;
@@ -375,6 +396,7 @@ function autoCamera(now) {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (patchOn) { PatchView.frame(now); requestAnimationFrame(frame); return; }
   const k = stageOf(sim);
   if (k !== stage) { stage = k; stageAt = now; userCam = false; if (k === 'end') showEnd(); updateUI(true); }
   const walking = anyWalking(['patient', 'nurse1', 'nurse2', 'doctor', 'anaes']);
@@ -391,7 +413,8 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 const startId = (location.hash || '').replace('#', '');
-loadCase(E.CASES.some(c => c.id === startId) ? startId : 'er');
-window.addEventListener('hashchange', () => { const id = location.hash.replace('#', ''); if (id && id !== caseDef.id && E.CASES.some(c => c.id === id)) loadCase(id); });
+loadCase(E.CASES.some(c => c.id === startId) ? startId : 'er', startId === 'patch' ? { play: false } : {});
+if (startId === 'patch') showPatch();
+window.addEventListener('hashchange', () => { const id = location.hash.replace('#', ''); if (id === 'patch') showPatch(); else if (id && (id !== caseDef.id || patchOn) && E.CASES.some(c => c.id === id)) loadCase(id); });
 requestAnimationFrame(frame);
-window.__badri = { consumeOnly() { consume(); }, consumeAll() { consume(); finishAllWalks(); }, snap() { stage = stageOf(sim); flyTo(desiredShot(), true); }, get sim() { return sim; }, nextStep, loadCase, flyTo, people, THREE, camera, controls, get stage() { return stage; } };
+window.__badri = { consumeOnly() { consume(); }, consumeAll() { consume(); finishAllWalks(); }, snap() { stage = stageOf(sim); flyTo(desiredShot(), true); }, get sim() { return sim; }, nextStep, loadCase, flyTo, people, THREE, camera, controls, get stage() { return stage; }, showPatch, PatchView };

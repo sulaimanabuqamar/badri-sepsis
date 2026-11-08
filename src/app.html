@@ -191,6 +191,61 @@ body.ended .caption { visibility: hidden; }
 .bubble.badri { border-color: var(--alert); }
 .bubble.badri b { color: var(--alert); }
 
+/* ---- the patch tab ---- */
+body.patch #card, body.patch .bottom, body.patch .drawer, body.patch .endcard, body.patch .progress, body.patch .shade.b { display: none !important; }
+#patchView { position: fixed; inset: 0; z-index: 3; background: var(--bg); }
+#patchScene { position: absolute; inset: 0; z-index: 0; isolation: isolate; }
+#patchScene canvas { display: block; }
+.pcard { position: fixed; top: 82px; left: 22px; z-index: 4; width: 300px; max-height: calc(100vh - 230px); overflow-y: auto; background: var(--paper); backdrop-filter: blur(16px) saturate(1.1); -webkit-backdrop-filter: blur(16px) saturate(1.1); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; box-shadow: var(--shadow); display: grid; gap: 4px; }
+.pcard .ptitle { font: 600 18px/1.2 var(--display); letter-spacing: -0.03em; color: var(--text); margin: 4px 0 8px; }
+.pcard .opts { margin: 4px 0 8px; }
+.pstats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 10px 0; margin: 2px 0 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pstats b { display: block; font: 600 17px/1.15 var(--display); letter-spacing: -0.02em; color: var(--head); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.pcard .pcycle { width: 100%; justify-content: center; }
+.pread { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; padding: 10px 11px; border-radius: 12px; background: var(--seg); margin-top: 6px; }
+.pread .ch { font: 600 30px/1 var(--display); letter-spacing: -0.04em; color: var(--head); grid-row: span 2; }
+.pread .nm { font-size: 13px; font-weight: 600; }
+.bits { display: flex; gap: 5px; }
+.bit { display: inline-flex; flex-direction: column; align-items: center; min-width: 30px; padding: 3px 0 4px; border-radius: 7px; border: 1px solid var(--line); font: 600 14px/1 var(--display); color: var(--muted); }
+.bit small { font: 600 9px/1.2 var(--font); letter-spacing: 0.06em; color: var(--muted); }
+.bit[data-on="1"] { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.bit[data-on="1"] small { color: var(--on-primary); opacity: 0.8; }
+.pread svg { grid-column: 1 / -1; width: 100%; height: 34px; color: var(--muted); }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 8px; }
+.legend button { display: flex; align-items: center; gap: 7px; border: 0; background: transparent; padding: 5px 6px; border-radius: 8px; font-size: 12.5px; color: var(--text); cursor: pointer; text-align: left; min-height: 30px; }
+.legend button:hover { background: var(--seg); }
+.legend button[aria-pressed="true"] { background: var(--seg); font-weight: 600; color: var(--head); }
+.legend i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); }
+.pbottom { position: fixed; left: 22px; right: 22px; bottom: 20px; z-index: 4; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; pointer-events: none; }
+.pbottom .caption { pointer-events: auto; padding-left: 322px; }
+.pbottom h1 { font-size: clamp(24px, 2.6vw, 38px); }
+.pbottom .caption p { font-size: 15px; max-width: 64ch; }
+.pfine { margin: 0; max-width: 260px; font-size: 11.5px; color: var(--muted); text-align: right; flex: none; }
+.plabel { pointer-events: auto; cursor: pointer; }
+.plabel span { display: inline-flex; align-items: center; gap: 6px; transform: translateX(calc(50% + 4px)); font: 600 11.5px/1 var(--font); color: var(--text); background: var(--paper-solid); border: 1px solid var(--line); padding: 5px 9px; border-radius: 999px; white-space: nowrap; box-shadow: var(--shadow); }
+.plabel span i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.plabel.sel span { border-color: var(--head); color: var(--head); box-shadow: 0 0 0 2px color-mix(in srgb, var(--head) 25%, transparent); }
+.plabel.needle span { transform: none; font-size: 11px; padding: 4px 8px; }
+.plabel.skin { pointer-events: none; cursor: default; }
+.plabel.skin span { transform: translateX(calc(-50% - 4px)); background: var(--paper); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); box-shadow: none; }
+.plabel.skin.right span { transform: translateX(calc(50% + 4px)); color: var(--head); }
+@media (max-width: 900px) {
+  .pcard { top: 118px; left: 14px; width: 250px; padding: 12px 14px; max-height: calc(100vh - 360px); }
+  .pcard .ptitle, .pcard .legend { display: none; }
+  .pbottom { left: 14px; right: 14px; bottom: 14px; flex-direction: column; align-items: stretch; gap: 6px; }
+  .pbottom .caption { padding-left: 0; }
+  .pfine { max-width: none; text-align: left; }
+}
+@media (max-width: 560px) {
+  .pcard { right: 14px; width: auto; top: 112px; }
+  .pstats, .pcard > .k, .pread svg, .plabel.skin { display: none; }
+  .pcard { gap: 8px; padding: 10px 12px; }
+  .pcard .opts { margin: 0; }
+  .plabel.needle span { font-size: 9.5px; padding: 3px 6px; }
+  .pbottom h1 { font-size: 22px; }
+  .pbottom .caption p { font-size: 13.5px; }
+}
+
 @media (max-width: 900px) {
   .top { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
   .seg { margin-left: 0; width: 100%; }
@@ -227,12 +282,7 @@ body.ended .caption { visibility: hidden; }
 
 <header class="top">
   <div class="brand">
-    <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
-      <rect width="34" height="34" rx="10" fill="#1C5469"/>
-      <path d="M8 21.5a9 9 0 0 1 18 0z" fill="#BF8945"/>
-      <rect x="6" y="21.5" width="22" height="2" rx="1" fill="#EDE6DB"/>
-      <rect x="10" y="25.5" width="14" height="1.6" rx=".8" fill="#EDE6DB" opacity=".55"/>
-    </svg>
+    <img class="mark" src="assets/badri-mark.png" alt="" width="34" height="34">
     <div>
       <div class="name">Badri <span lang="ar" dir="rtl">بدري</span></div>
       <div class="sub">Sepsis early warning · a simulated hospital</div>
@@ -321,6 +371,30 @@ body.ended .caption { visibility: hidden; }
     hour-1 bundle: <a href="https://doi.org/10.1007/s00134-018-5085-0">Surviving Sepsis Campaign (Levy et al., 2018)</a>.
   </section>
 </aside>
+
+<div id="patchView" hidden>
+  <div id="patchScene" role="img" aria-label="3D model of the Badri patch: microneedle array, flexible backing and adhesive, under a reusable reader"></div>
+  <section class="pcard" aria-label="The Badri patch">
+    <span class="k">The Badri patch</span>
+    <div class="ptitle">Disposable needles, reusable reader.</div>
+    <span class="k">Design</span>
+    <div class="opts" id="pDesign" role="group" aria-label="Needle design"></div>
+    <span class="k">View</span>
+    <div class="opts" id="pView" role="group" aria-label="View"></div>
+    <div class="pstats" id="pStats"></div>
+    <button class="btn primary pcycle" id="pCycle" type="button" aria-pressed="false">Run a read cycle</button>
+    <div class="pread" id="pRead" hidden aria-live="polite"><span class="ch" id="pCh"></span><span class="nm" id="pChName"></span><span class="bits" id="pBits"></span><svg id="pSig" viewBox="0 0 120 36" aria-hidden="true"></svg></div>
+    <div class="legend" id="pLegend" role="group" aria-label="Needle types"></div>
+  </section>
+  <div class="pbottom">
+    <div class="caption" aria-live="polite">
+      <div class="chips"><span class="chip lvl" id="pChip"></span></div>
+      <h1 id="pHead"></h1>
+      <p id="pLine"></p>
+    </div>
+    <p class="pfine">Concept model built from the team's research. Not a validated device.</p>
+  </div>
+</div>
 
 <div class="endcard" id="end" role="dialog" aria-labelledby="endTitle" hidden>
   <span class="k">Case complete</span>

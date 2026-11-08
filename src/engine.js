@@ -8,7 +8,7 @@
   const SECOND_WINDOW = 10;    // further minutes before responsible physician + ICU are paged
   const LAB_TURNAROUND = 40;   // minutes from lab order to results
   const ROUTINE_ROUNDS = 240;  // inpatient vitals every 4 hours (clinical advisor)
-  const PATCH_SAMPLE = 5;      // patch reading every 5 minutes
+  const PATCH_SAMPLE = 15;     // default: the patch reads and Badri re-scores together, every 15 minutes (Rayan, 8 Nov)
 
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -215,8 +215,8 @@
     startMonitoring() {
       this.location = 'ward';
       this.bedAt = this.t;
-      this.setStatus('watch', 'Watching', `Patch reading every ${PATCH_SAMPLE} min · re-score every ${this.interval} min`);
-      this.say('info', 'Badri', `Patch online. Reading lactate, pulse, breathing and temperature every ${PATCH_SAMPLE} min. Re-scoring every ${this.interval} min.`);
+      this.setStatus('watch', 'Watching', `Patch reads and Badri re-scores every ${this.interval} min`);
+      this.say('info', 'Badri', `Patch online. Reading lactate, pulse, breathing and temperature and re-scoring every ${this.interval} min.`);
       this.sample();
       this.rescore(true);
     }
@@ -229,7 +229,7 @@
       this.setVital('spo2', v.spo2, this.manual ? src : 'Bedside clip');
       this.samples.push({ t: this.t, lac: v.lac, hr: v.hr, rr: v.rr });
       this.act({ cmd: 'sample' });
-      this.after(PATCH_SAMPLE, () => this.sample());
+      this.after(this.interval, () => this.sample());   // each reading lands just before its re-score
     }
     rescore(baseline) {
       if (this.done) return;

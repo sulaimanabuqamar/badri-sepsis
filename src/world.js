@@ -815,7 +815,7 @@ function drawBoard(level, sim) {
     g.font = i === 1 ? '600 44px "Inter Tight", Inter, sans-serif' : '500 34px Inter, sans-serif'; g.fillText(text, 290, y);
   });
   g.fillStyle = 'rgba(237,230,219,0.7)'; g.font = '500 24px Inter, sans-serif';
-  g.fillText(sim && sim.patch ? `Patch reads every 5 min · re-score every ${sim.interval} min` : 'Triage scores every patient on arrival', 48, h - 40);
+  g.fillText(sim && sim.patch ? `Patch reads and re-scores every ${sim.interval} min` : 'Triage scores every patient on arrival', 48, h - 40);
   board.t.needsUpdate = true;
 }
 

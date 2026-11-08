@@ -11,7 +11,7 @@ Built for the 3rd MedBio Hackathon, Khalifa University, November 2026.
 ## Files
 - `index.html`: the built site (what Vercel serves)
 - `assets/`: avatars, textures and animation clips
-- `src/`: the source. `engine.js` holds the scoring and case logic, `world.js` the 3D hospital, `avatars.js` the people, `ui.js` the controls, and `app.html` the page shell
+- `src/`: the source. `engine.js` holds the scoring and case logic, `world.js` the 3D hospital, `avatars.js` the people, `patch.js` the 3D model of the patch and reader ("The patch" tab), `ui.js` the controls, and `app.html` the page shell
 
 ## Rebuild after editing `src/`
 ```
