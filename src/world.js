@@ -901,7 +901,7 @@ function flyTo(name, instant) {
   const from = { pos: camera.position.clone(), tgt: controls.target.clone(), zoom: camera.zoom };
   const dist = from.pos.distanceTo(to.pos);
   const interiorHop = Math.min(from.pos.y, to.pos.y) < 3 && dist > 2.5;
-  camAnim = { t0: performance.now(), dur: Math.min(2600, 1200 + dist * 55), from, to, lift: interiorHop ? Math.max(3.2, dist * 0.32) : 0 };
+  camAnim = { t0: performance.now(), dur: Math.min(1800, 900 + dist * 40), from, to, lift: interiorHop ? Math.max(3.2, dist * 0.32) : 0 };
 }
 function stepCamera(now) {
   if (!camAnim) return;

@@ -5,7 +5,7 @@ let consumedAnim = 0, consumedLog = 0, stage = null, stageAt = 0, plan = null, l
 let pendingShot = null, pendingAt = 0;
 
 // simulated minutes per real second, per stage (quiet waiting runs faster)
-const PACE = { arrive: 1.0, triage: 0.9, patch: 0.9, watch: 4.2, alert: 0.9, escalate: 0.9, bundle: 1.2, treated: 4.0, confirmed: 1.0, routine: 1.2, try: 1.5 };
+const PACE = { arrive: 1.8, triage: 1.6, patch: 1.6, watch: 7.5, alert: 1.6, escalate: 1.6, bundle: 2.2, treated: 7.0, confirmed: 1.8, routine: 2.2, try: 2.5 }; // 8 Nov: ~1.75x faster (Rayan)
 const TAB = { er: 'ER walk-in', checkup: 'After childbirth', healthy: 'Healthy check-up', try: 'Try it' };
 const LOC = { entrance: 'Arriving', triage: 'Triage', clinic: 'Clinic', ward: 'Ward · bed 2' };
 
@@ -402,11 +402,11 @@ function frame(now) {
   const walking = anyWalking(['patient', 'nurse1', 'nurse2', 'doctor', 'anaes']);
   if (playing && !sim.done && !walking) {
     let pace = PACE[stage] ?? 1.2;
-    if (now - stageAt < 2600) pace = Math.min(pace, 0.75);
+    if (now - stageAt < 1400) pace = Math.min(pace, 1.2);
     sim.step(dt * pace * userSpeed);
     consume();
   }
-  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 2.6 : 1.9) * userSpeed);
+  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 3.6 : 2.8) * userSpeed);
   autoCamera(now);
   render();
   updateUI(false);

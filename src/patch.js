@@ -42,7 +42,7 @@ const PatchView = (() => {
     afe: { name: 'Potentiostat', h: 'Potentiostat front end', p: () => 'Holds the selected needle at its working voltage against the reference needles and turns its nanoamp current into a voltage. It must also sweep voltages and measure impedance for PCT, IL-6, presepsin and CRP, so it is an AD5940 or ADuCM355-class chip; a fixed-voltage chip such as the LMP91000 only suits lactate.' },
     mcu: { name: 'Microcontroller + Bluetooth', h: 'Microcontroller + Bluetooth · Seeed XIAO nRF52840', p: () => 'Runs the read cycle: set the address pins, wait 30 ms for the switch to settle, then read. Each reading goes over Bluetooth Low Energy to the phone or ward dashboard, where Badri re-scores the patient.' },
     battery: { name: 'Battery', h: 'Battery · reusable reader', p: () => 'A small rechargeable cell. It stays in the reusable reader, so no battery is thrown away with each patch.' },
-    top: { name: 'Reader cover', h: 'Reader cover · reusable', p: () => 'A sealed, splash-proof white shell seated in the red tray, so it survives disinfectant wipes between patients. Built to medical electrical safety rules (IEC 60601-1, including its home-use part, since it goes home with the patient). The red light blinks with each reading.' }
+    top: { name: 'Reader cover', h: 'Reader cover · reusable', p: () => 'A sealed, splash-proof white shell seated in the red tray, so it survives disinfectant wipes between patients. Built to medical electrical safety rules (IEC 60601-1, including its home-use part, since it goes home with the patient).' }
   };
   const EXPLODE = { adhesive: 1.4, array: 3.6, flex: 6.2, base: 11, analog: 16, mcu: 21.5, battery: 27.5, top: 40 };
   const READER = ['base', 'analog', 'mcu', 'battery', 'top'];
@@ -61,7 +61,7 @@ const PatchView = (() => {
   // guided tour of the whole device: each step sets a view, a highlighted part and a camera, with a short line of narration
   const TOUR = [
     { mode: 'whole', h: 'One wearable, two parts.', p: 'A sterile microneedle patch that is thrown away after use, and a reusable reader that clicks on top and holds every chip.' },
-    { mode: 'whole', sel: 'top', focus: 'top', h: 'The reader cover', p: 'A sealed, splash-proof shell, wiped with hospital disinfectant between patients. The red light blinks with each reading.' },
+    { mode: 'whole', sel: 'top', focus: 'top', h: 'The reader cover', p: 'A sealed, splash-proof shell, wiped with hospital disinfectant between patients, so the reader is reused for the next patient.' },
     { mode: 'exploded', h: 'Open it up.', p: 'Thrown away: the adhesive, the needle array and its backing. Kept: the reader base, sensor board, microcontroller, battery and cover.' },
     { mode: 'exploded', sel: 'battery', focus: 'battery', h: 'Battery', p: 'A small rechargeable cell. It lives in the reader, so no battery is thrown away with each patch.' },
     { mode: 'exploded', sel: 'mcu', focus: 'mcu', h: 'Microcontroller + Bluetooth', p: 'A Seeed XIAO nRF52840 runs the read cycle every 15 minutes and sends each reading over Bluetooth Low Energy to the ward dashboard.' },
@@ -198,7 +198,7 @@ const PatchView = (() => {
     R.shadow.rotation.x = -Math.PI / 2; R.shadow.renderOrder = 5;
   }
 
-  // the reader follows the team's design: a white rounded cover seated in a deep-red tray, logo and status light on top
+  // the reader follows the team's design: a white rounded cover seated in a deep-red tray, the logo centred on top
   function rrShape(w, d, r) {
     const sh = new THREE.Shape(), x = -w / 2, y = -d / 2;
     sh.moveTo(x + r, y); sh.lineTo(x + w - r, y); sh.quadraticCurveTo(x + w, y, x + w, y + r); sh.lineTo(x + w, y + d - r); sh.quadraticCurveTo(x + w, y + d, x + w - r, y + d);
@@ -256,17 +256,17 @@ const PatchView = (() => {
     const bat = part('battery'); bat.userData.y0 = 0.45;
     pickable(mesh(new RoundedBoxGeometry(18, 3.0, 8, 3, 1.1), std(0xE9E8E4, { metalness: 0.35, roughness: 0.32 }), 0, 6.0, 0, bat), 'battery');
     for (const sx of [-1, 1]) pickable(mesh(new RoundedBoxGeometry(1.2, 3.1, 8.1, 2, 0.4), goldC, sx * 9.3, 6.0, 0, bat), 'battery');
-    // cover: a soft white rounded square seated in the tray, with the logo and a red status light
+    // cover: a soft white rounded square seated in the tray, with the logo
     const top = part('top'); top.userData.y0 = 0.45;
     const coverM = std(WHITE, { roughness: 0.42 });
     pickable(mesh(new RoundedBoxGeometry(31.6, 8.4, 31.6, 10, 3.9), coverM, 0, 8.0, 0, top), 'top');
     const lip = new THREE.ExtrudeGeometry(rrShape(30.2, 30.2, 6.1), { depth: 1.6, bevelEnabled: false, curveSegments: 48 }); lip.rotateX(-Math.PI / 2);
     pickable(mesh(lip, coverM, 0, 3.3, 0, top), 'top');
     const logo = new THREE.TextureLoader().load('assets/badri-mark.png', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; });
-    const lm = mesh(new THREE.PlaneGeometry(8.4, 8.4), new THREE.MeshStandardMaterial({ map: logo, transparent: true, roughness: 0.45, depthWrite: false }), 1.2, 12.215, -3.0, top); lm.rotation.x = -Math.PI / 2;
+    const lm = mesh(new THREE.PlaneGeometry(8.4, 8.4), new THREE.MeshStandardMaterial({ map: logo, transparent: true, roughness: 0.45, depthWrite: false }), 0, 12.215, 0, top); lm.rotation.x = -Math.PI / 2;
     const ledG = new THREE.CapsuleGeometry(0.42, 2.3, 4, 14); ledG.rotateZ(Math.PI / 2);
     R.led = mesh(ledG, new THREE.MeshStandardMaterial({ color: 0xC0242C, emissive: 0xE0303A, emissiveIntensity: 0.3, roughness: 0.35 }), -3.4, 12.08, 6.4, top);
-    R.led.scale.y = 0.55;
+    R.led.scale.y = 0.55; R.led.visible = false;   // Rayan 16:42: no line on the cover
   }
 
   function clearGroup(g) { for (const c of [...g.children]) { if (c.isCSS2DObject) continue; g.remove(c); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } }
@@ -379,7 +379,7 @@ const PatchView = (() => {
     const desk = R.hostW > 900, phone = R.hostW < 560, fov = fovFor(mode);
     const fit = (w, h) => { const t = Math.tan(THREE.MathUtils.degToRad(fov / 2)); return Math.max(h / 2 / t, w / (2 * t * R.camera.aspect)); };
     if (name === 'top' && mode !== 'exploded') {
-      const tg = [0, 6, 0], d = new THREE.Vector3(30, 44, 40).normalize().multiplyScalar(fit(desk ? 82 : 54, 46));
+      const tg = [desk ? 2 : 0, 1, 0], d = new THREE.Vector3(30, 44, 40).normalize().multiplyScalar(fit(desk ? 100 : 60, 58));
       return { t: tg, p: [tg[0] + d.x, tg[1] + d.y, tg[2] + d.z], fov };
     }
     const off = EXPLODE[name] || 0, y = (R.g[name] ? R.g[name].userData.y0 : 0) + off + (PART_Y[name] || 0);
