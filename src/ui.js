@@ -5,7 +5,7 @@ let consumedAnim = 0, consumedLog = 0, stage = null, stageAt = 0, plan = null, l
 let pendingShot = null, pendingAt = 0;
 
 // simulated minutes per real second, per stage (quiet waiting runs faster)
-const PACE = { arrive: 5.0, triage: 4.0, patch: 5.0, watch: 20, alert: 4.0, escalate: 4.0, bundle: 8.0, treated: 24, confirmed: 6.0, routine: 7.0, try: 2.5 }; // 8 Nov 17:56: whole case in about 20 s (Rayan)
+const PACE = { arrive: 1.6, triage: 1.3, patch: 1.6, watch: 6.4, alert: 1.3, escalate: 1.3, bundle: 2.6, treated: 7.6, confirmed: 1.9, routine: 2.2, try: 2.5 }; // 8 Nov 22:23: After childbirth case about 45 s (Rayan)
 const TAB = { er: 'ER walk-in', checkup: 'After childbirth', healthy: 'Healthy check-up', try: 'Try it' };
 const LOC = { entrance: 'Arriving', triage: 'Triage', clinic: 'Clinic', ward: 'Ward · bed 2' };
 
@@ -408,7 +408,7 @@ function frame(now) {
     sim.step(dt * pace * userSpeed);
     consume();
   }
-  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 9.0 : 8.0) * userSpeed);
+  updateWorld(now, playing ? dt : 0, sim, (sim.alert ? 3.9 : 3.5) * userSpeed);
   autoCamera(now);
   render();
   updateUI(false);
