@@ -856,7 +856,7 @@ function resetScene(opts, caseId) {
 function applyAnim(a, caseId) {
   switch (a.cmd) {
     case 'reset': resetScene(a, caseId); break;
-    case 'walk': walk(a.who, a.to, a.then, a.who === 'patient' && patchJustOn ? 3.2 : 0); break;
+    case 'walk': walk(a.who, a.to, a.then, a.who === 'patient' && patchJustOn ? 0.8 : 0); break;
     case 'say': bubble(a.who, a.text); break;
     case 'patch': patch.visible = a.on; patchPulse = 1; patchJustOn = a.on; break;
     case 'status': setLevel(a.level); break;
@@ -901,7 +901,7 @@ function flyTo(name, instant) {
   const from = { pos: camera.position.clone(), tgt: controls.target.clone(), zoom: camera.zoom };
   const dist = from.pos.distanceTo(to.pos);
   const interiorHop = Math.min(from.pos.y, to.pos.y) < 3 && dist > 2.5;
-  camAnim = { t0: performance.now(), dur: Math.min(1800, 900 + dist * 40), from, to, lift: interiorHop ? Math.max(3.2, dist * 0.32) : 0 };
+  camAnim = { t0: performance.now(), dur: Math.min(1000, 500 + dist * 25), from, to, lift: interiorHop ? Math.max(3.2, dist * 0.32) : 0 };
 }
 function stepCamera(now) {
   if (!camAnim) return;
