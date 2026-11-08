@@ -78,7 +78,9 @@ const PatchView = (() => {
   ];
   const tour = { on: false, i: 0, t: 0, paused: false };
   const tourText = (st) => (typeof st.p === 'function' ? st.p() : st.p);
-  const tourDur = (st) => st.dur || Math.min(11, Math.max(6, 2.5 + tourText(st).split(' ').length * 0.27));
+  // Rayan 8 Nov 22:22: the whole tour in about 15 s, played live before the Fatima case
+  const TOUR_SECS = [1.2, 0.9, 1.2, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1.0, 0.8, 1.2, 1.8, 1.2, 0.9];
+  const tourDur = (st) => TOUR_SECS[TOUR.indexOf(st)] || 1;
 
   let R = null, on = false, design = 'lean', mode = 'whole', selected = null, last = performance.now();
   const cyc = { on: false, i: -1, at: 0, seq: [] };
@@ -371,7 +373,7 @@ const PatchView = (() => {
   function flyCam(instant) {
     const pr = presets()[mode], t = new THREE.Vector3(...pr.t), p = new THREE.Vector3(...pr.p);
     if (instant || reduceMotion) { R.ctl.target.copy(t); R.camera.position.copy(p); anim.fov = pr.fov; setFov(); anim.cam = null; R.ctl.update(); return; }
-    anim.cam = { t0: R.ctl.target.clone(), p0: R.camera.position.clone(), f0: anim.fov, t, p, f: pr.fov, start: performance.now(), dur: 1100 };
+    anim.cam = { t0: R.ctl.target.clone(), p0: R.camera.position.clone(), f0: anim.fov, t, p, f: pr.fov, start: performance.now(), dur: tour.on ? 550 : 1100 };
   }
   // a closer shot of one part (tour), from the same side as the exploded view
   const PART_Y = { adhesive: 0.25, array: 0.1, flex: 0.4, base: 2.2, analog: 1.6, mcu: 4.0, battery: 6.0, top: 8.0 };
@@ -388,7 +390,7 @@ const PatchView = (() => {
   }
   function flyShot(pr) {
     if (reduceMotion) { R.ctl.target.set(...pr.t); R.camera.position.set(...pr.p); anim.fov = pr.fov; setFov(); anim.cam = null; R.ctl.update(); return; }
-    anim.cam = { t0: R.ctl.target.clone(), p0: R.camera.position.clone(), f0: anim.fov, t: new THREE.Vector3(...pr.t), p: new THREE.Vector3(...pr.p), f: pr.fov, start: performance.now(), dur: 1100 };
+    anim.cam = { t0: R.ctl.target.clone(), p0: R.camera.position.clone(), f0: anim.fov, t: new THREE.Vector3(...pr.t), p: new THREE.Vector3(...pr.p), f: pr.fov, start: performance.now(), dur: tour.on ? 550 : 1100 };
   }
   function setFov() { if (Math.abs(R.camera.fov - anim.fov) > 1e-3) { R.camera.fov = anim.fov; R.camera.updateProjectionMatrix(); } }
   function applyMode(instant) {
@@ -545,7 +547,7 @@ const PatchView = (() => {
     }
     tourTick(dt);
     // read cycle
-    if (cyc.on) { cyc.at -= dt; if (cyc.at <= 0) { stepCycle(); cyc.at = 1.5; } }
+    if (cyc.on) { cyc.at -= dt; if (cyc.at <= 0) { stepCycle(); cyc.at = tour.on ? 0.28 : 1.5; } }
     R.led.material.emissiveIntensity += ((cyc.on ? 0.6 : 0.3) - R.led.material.emissiveIntensity) * Math.min(1, dt * 4);
     R.ctl.update();
     R.renderer.render(R.scene, R.camera); R.labels.render(R.scene, R.camera);
